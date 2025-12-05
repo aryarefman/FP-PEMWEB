@@ -38,7 +38,11 @@ type Game = {
   name: string;
   description: string;
   thumbnail_image: string | null;
-  game_template: string;
+  game_template: {
+    id: string;
+    slug: string;
+    name: string;
+  };
   total_liked: number;
   total_played: number;
   creator_id: string;
@@ -74,7 +78,7 @@ export default function HomePage() {
     const fetchGameTemplates = async () => {
       try {
         const response = await api.get("/api/game/template");
-        setGameTemplates(response.data.data);
+        setGameTemplates(response.data.data || []);
       } catch (err) {
         console.error("Failed to fetch game templates:", err);
       }
@@ -105,7 +109,7 @@ export default function HomePage() {
         console.log("Fetched games data:", response.data);
 
         setGames(
-          response.data.data.map(
+          (response.data.data || []).map(
             (g: Game) =>
               ({
                 ...g,
@@ -214,7 +218,7 @@ export default function HomePage() {
               {game.name}
             </Typography>
             <Badge variant="secondary" className="shrink-0">
-              {game.game_template}
+              {game.game_template.name}
             </Badge>
           </div>
 
