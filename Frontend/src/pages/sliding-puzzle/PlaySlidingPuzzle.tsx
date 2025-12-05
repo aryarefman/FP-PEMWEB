@@ -43,6 +43,8 @@ function PlaySlidingPuzzle() {
     const [hintProgress, setHintProgress] = useState<{ current: number; total: number } | null>(null);
     const [isAnimatingWin, setIsAnimatingWin] = useState(false);
     const [animatedTiles, setAnimatedTiles] = useState<Set<number>>(new Set());
+    const [userHintsLeft, setUserHintsLeft] = useState(3); // Default 3 hints per game
+    const [gameResult, setGameResult] = useState<'won' | 'lost' | null>(null);
 
     useEffect(() => {
         const fetchPuzzle = async () => {
@@ -86,6 +88,7 @@ function PlaySlidingPuzzle() {
             setTime((prev) => {
                 if (puzzle?.time_limit && prev >= puzzle.time_limit) {
                     setIsFinished(true);
+                    setGameResult('lost');
                     toast.error("Time's up!");
                     return prev;
                 }
@@ -129,11 +132,13 @@ function PlaySlidingPuzzle() {
         setMoves(0);
         setTime(0);
         setIsFinished(false);
+        setGameResult(null);
         setIsStarted(true);
         setIsPaused(false);
         setShowHint(false);
         setHintMoves([]);
         setHintProgress(null);
+        setUserHintsLeft(3); // Reset hints
         setIsAnimatingWin(false);
         setAnimatedTiles(new Set());
     }, [puzzle]);
@@ -237,6 +242,7 @@ function PlaySlidingPuzzle() {
                             // Show win screen after animation completes
                             setTimeout(() => {
                                 setIsFinished(true);
+                                setGameResult('won');
                                 setIsAnimatingWin(false);
                                 toast.success("Congratulations! You solved the puzzle!");
                             }, 300);
@@ -253,6 +259,11 @@ function PlaySlidingPuzzle() {
 
     const calculateHint = () => {
         if (!puzzle || !isStarted || isFinished || isPaused) return;
+        if (userHintsLeft <= 0) {
+            toast.error("No hints left!");
+            return;
+        }
+
 
         const gridSize = puzzle.grid_size;
         const emptyTile = tiles.find((t) => t.isEmpty);
@@ -349,10 +360,8 @@ function PlaySlidingPuzzle() {
         const closedSet = new Set<string>();
 
         // Adjust search depth based on grid size
-        const maxDepth = gridSize <= 3 ? 8 : gridSize === 4 ? 6 : 4;
         const maxIterations = gridSize <= 3 ? 10000 : gridSize === 4 ? 5000 : 2000;
         let iterations = 0;
-        let bestNode: SearchNode | null = null;
 
         while (openSet.length > 0 && iterations < maxIterations) {
             iterations++;
@@ -392,6 +401,7 @@ function PlaySlidingPuzzle() {
                     setShowHint(true);
                     setHintProgress({ current: 0, total: path.length }); // TOTAL steps!
 
+                    setUserHintsLeft(prev => prev - 1);
                     toast.success(`Solution: ${path.length} steps to solve!`);
 
                     setTimeout(() => {
@@ -450,6 +460,7 @@ function PlaySlidingPuzzle() {
             setShowHint(true);
             setHintProgress({ current: 0, total: 1 });
 
+            setUserHintsLeft(prev => prev - 1);
             toast("Showing best next move (puzzle too complex)", { icon: "💡" });
 
             setTimeout(() => {
@@ -501,37 +512,109 @@ function PlaySlidingPuzzle() {
     const gridSize = puzzle.grid_size;
     const tileSize = Math.min(500 / gridSize, 120);
 
-    if (isFinished) {
+    if (isFinished && gameResult) {
         return (
-            <div className="w-full h-screen flex justify-center items-center bg-slate-50">
-                <div className="bg-white rounded-xl p-10 mx-10 text-center max-w-sm w-full space-y-4 shadow-lg">
-                    <Trophy className="mx-auto text-yellow-400" size={72} />
-                    <Typography variant="h4">Puzzle Solved!</Typography>
-                    <Typography variant="h2">{moves} Moves</Typography>
-                    <Typography variant="p">Time: {formatTime(time)}</Typography>
-
-                    <div className="flex justify-center gap-1 text-yellow-400 text-xl">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                            <span key={i}>★</span>
-                        ))}
+            <div className="w-full bg-slate-50 min-h-screen flex flex-col relative">
+                {/* Background Game Area (Blurred) */}
+                <div className="absolute inset-0 filter blur-sm pointer-events-none z-0">
+                    {/* Re-render the game header and board as background */}
+                    <div className="w-full h-fit flex justify-between items-center px-8 py-4 shadow-sm bg-white">
+                        <div className="flex gap-4">
+                            <Typography variant="p" className="font-semibold">Moves: {moves}</Typography>
+                            <Typography variant="p" className="font-semibold">Time: {formatTime(time)}</Typography>
+                        </div>
                     </div>
+                    <div className="w-full h-full p-8 flex justify-center items-center">
+                        <div className="max-w-4xl w-full space-y-6">
+                            <Typography variant="h3" className="text-center">{puzzle.name}</Typography>
+                            <div className="flex justify-center">
+                                <div
+                                    className="relative bg-gray-800 p-2 rounded-lg shadow-2xl opacity-50"
+                                    style={{
+                                        width: `${gridSize * Math.min(500 / gridSize, 120) + 16}px`,
+                                        height: `${gridSize * Math.min(500 / gridSize, 120) + 16}px`,
+                                    }}
+                                >
+                                    {/* Simply show the full image if won, or current tiles if lost */}
+                                    {gameResult === 'won' ? (
+                                        <div
+                                            className="w-full h-full bg-cover bg-center rounded"
+                                            style={{ backgroundImage: `url(${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image})` }}
+                                        />
+                                    ) : (
+                                        tiles.map((tile) => {
+                                            // Simplified rendering for background
+                                            const row = Math.floor(tile.position / gridSize);
+                                            const col = tile.position % gridSize;
+                                            const sourceRow = Math.floor(tile.id / gridSize);
+                                            const sourceCol = tile.id % gridSize;
+                                            const size = Math.min(500 / gridSize, 120);
+                                            return (
+                                                <div
+                                                    key={tile.id}
+                                                    className="absolute"
+                                                    style={{
+                                                        width: `${size - 4}px`,
+                                                        height: `${size - 4}px`,
+                                                        left: `${col * size + 2}px`,
+                                                        top: `${row * size + 2}px`,
+                                                        backgroundImage: tile.isEmpty ? "none" : `url(${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image})`,
+                                                        backgroundSize: `${gridSize * size}px ${gridSize * size}px`,
+                                                        backgroundPosition: `-${sourceCol * size}px -${sourceRow * size}px`,
+                                                    }}
+                                                />
+                                            )
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                    <Button
-                        className="w-full mt-4"
-                        onClick={() => {
-                            shuffleTiles();
-                        }}
-                    >
-                        Play Again
-                    </Button>
+                {/* Overlay Modal */}
+                <div className="absolute inset-0 z-10 flex justify-center items-center bg-black/40">
+                    <div className="bg-white rounded-xl p-10 mx-10 text-center max-w-sm w-full space-y-4 shadow-2xl transform transition-all scale-100">
+                        {gameResult === 'won' ? (
+                            <>
+                                <Trophy className="mx-auto text-yellow-400 animate-bounce" size={72} />
+                                <Typography variant="h4" className="text-green-600 font-bold">Puzzle Solved!</Typography>
+                                <Typography variant="h2">{moves} Moves</Typography>
+                                <Typography variant="p">Time: {formatTime(time)}</Typography>
 
-                    <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleExit}
-                    >
-                        Exit
-                    </Button>
+                                <div className="flex justify-center gap-1 text-yellow-400 text-xl">
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                        <span key={i}>★</span>
+                                    ))}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="mx-auto text-red-500 bg-red-100 p-4 rounded-full w-24 h-24 flex items-center justify-center mb-4">
+                                    <span className="text-4xl font-bold">:(</span>
+                                </div>
+                                <Typography variant="h4" className="text-red-500 font-bold">Time's Up!</Typography>
+                                <Typography variant="p" className="text-gray-600">Don't give up, try again!</Typography>
+                            </>
+                        )}
+
+                        <div className="pt-4 space-y-2">
+                            <Button
+                                className="w-full text-lg py-6"
+                                onClick={shuffleTiles}
+                            >
+                                {gameResult === 'won' ? 'Play Again' : 'Try Again'}
+                            </Button>
+
+                            <Button
+                                variant="outline"
+                                className="w-full"
+                                onClick={handleExit}
+                            >
+                                Exit
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -616,10 +699,14 @@ function PlaySlidingPuzzle() {
                                 <Button
                                     variant="outline"
                                     onClick={calculateHint}
-                                    className={showHint ? "bg-yellow-100 border-yellow-400" : ""}
+                                    disabled={userHintsLeft <= 0 || showHint}
+                                    className={`relative transition-all ${showHint ? "bg-yellow-100 border-yellow-400 text-yellow-700" : ""} ${userHintsLeft <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
                                 >
-                                    <Lightbulb size={16} />
-                                    {hintProgress ? `Hint ${hintProgress.current + 1}/${hintProgress.total}` : "Hint"}
+                                    <Lightbulb size={16} className={showHint ? "fill-yellow-500" : ""} />
+                                    {hintProgress
+                                        ? `Showing ${hintProgress.current + 1}/${hintProgress.total}`
+                                        : `Hint (${userHintsLeft})`
+                                    }
                                 </Button>
                             </>
                         )}
@@ -628,11 +715,18 @@ function PlaySlidingPuzzle() {
                     {/* Preview Image */}
                     {showPreview && (
                         <div className="flex justify-center">
-                            <img
-                                src={`${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image}`}
-                                alt="Preview"
-                                className="max-w-xs rounded-lg shadow-lg border-4 border-white"
-                            />
+                            <div className="relative rounded-lg shadow-lg border-4 border-white overflow-hidden"
+                                style={{
+                                    width: `${gridSize * tileSize}px`,
+                                    height: `${gridSize * tileSize}px`,
+                                }}
+                            >
+                                <img
+                                    src={`${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image}`}
+                                    alt="Preview"
+                                    className="w-full h-full object-fill"
+                                />
+                            </div>
                         </div>
                     )}
 
