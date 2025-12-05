@@ -189,7 +189,11 @@ export default function HomePage() {
 
   const GameCard = ({ game }: { game: Game }) => {
     const handlePlayGame = () => {
-      window.location.href = `/quiz/play/${game.id}`;
+      if (game.game_template.slug === "sliding-puzzle") {
+        window.location.href = `/sliding-puzzle/play/${game.id}`;
+      } else {
+        window.location.href = `/quiz/play/${game.id}`;
+      }
     };
 
     return (
