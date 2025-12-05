@@ -4,7 +4,7 @@ import api from "@/api/axios";
 import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import { Typography } from "@/components/ui/typography";
-import { ArrowLeft, Trophy, Pause, Play, RotateCcw, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Trophy, Pause, Play, RotateCcw, Eye, EyeOff, Lightbulb, ArrowUp, ArrowDown, ArrowLeftIcon, ArrowRight } from "lucide-react";
 
 interface SlidingPuzzleData {
     id: string;
@@ -38,6 +38,11 @@ function PlaySlidingPuzzle() {
     const [isFinished, setIsFinished] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [isStarted, setIsStarted] = useState(false);
+    const [showHint, setShowHint] = useState(false);
+    const [hintMoves, setHintMoves] = useState<{ tileId: number; direction: string }[]>([]);
+    const [hintProgress, setHintProgress] = useState<{ current: number; total: number } | null>(null);
+    const [isAnimatingWin, setIsAnimatingWin] = useState(false);
+    const [animatedTiles, setAnimatedTiles] = useState<Set<number>>(new Set());
 
     useEffect(() => {
         const fetchPuzzle = async () => {
@@ -126,6 +131,11 @@ function PlaySlidingPuzzle() {
         setIsFinished(false);
         setIsStarted(true);
         setIsPaused(false);
+        setShowHint(false);
+        setHintMoves([]);
+        setHintProgress(null);
+        setIsAnimatingWin(false);
+        setAnimatedTiles(new Set());
     }, [puzzle]);
 
     const isSolvable = (arr: number[], gridSize: number) => {
@@ -183,17 +193,269 @@ function PlaySlidingPuzzle() {
             setTiles(newTiles);
             setMoves((prev) => prev + 1);
 
+            // Update hint progress if user follows the hint
+            if (hintProgress && hintMoves.length > 0) {
+                const currentHint = hintMoves[0];
+                if (currentHint.tileId === clickedTile.id) {
+                    // User followed the hint, update progress
+                    setHintProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null);
+                    // Remove the completed hint move
+                    setHintMoves(prev => prev.slice(1));
+
+                    // If no more hints, clear progress after a delay
+                    if (hintMoves.length === 1) {
+                        setTimeout(() => {
+                            setHintProgress(null);
+                            setShowHint(false);
+                        }, 1000);
+                    }
+                } else {
+                    // User didn't follow hint, clear hint
+                    setHintProgress(null);
+                    setHintMoves([]);
+                    setShowHint(false);
+                }
+            }
+
             // Check win condition
             if (checkWin(newTiles)) {
-                setIsFinished(true);
+                setIsAnimatingWin(true);
                 addPlayCount(id!);
-                toast.success("Congratulations! You solved the puzzle!");
+
+                // Animate tiles one by one
+                if (puzzle) {
+                    const gridSize = puzzle.grid_size;
+                    const totalTiles = gridSize * gridSize;
+                    let currentTile = 0;
+
+                    const animateInterval = setInterval(() => {
+                        if (currentTile < totalTiles - 1) { // -1 to exclude empty tile
+                            setAnimatedTiles(prev => new Set([...prev, currentTile]));
+                            currentTile++;
+                        } else {
+                            clearInterval(animateInterval);
+                            // Show win screen after animation completes
+                            setTimeout(() => {
+                                setIsFinished(true);
+                                setIsAnimatingWin(false);
+                                toast.success("Congratulations! You solved the puzzle!");
+                            }, 300);
+                        }
+                    }, 100); // 100ms delay between each tile animation
+                }
             }
         }
     };
 
     const checkWin = (currentTiles: Tile[]): boolean => {
         return currentTiles.every((tile) => tile.id === tile.position);
+    };
+
+    const calculateHint = () => {
+        if (!puzzle || !isStarted || isFinished || isPaused) return;
+
+        const gridSize = puzzle.grid_size;
+        const emptyTile = tiles.find((t) => t.isEmpty);
+        if (!emptyTile) return;
+
+        // Calculate Manhattan distance for a tile
+        const getManhattanDistance = (tileId: number, position: number): number => {
+            const currentRow = Math.floor(position / gridSize);
+            const currentCol = position % gridSize;
+            const targetRow = Math.floor(tileId / gridSize);
+            const targetCol = tileId % gridSize;
+            return Math.abs(currentRow - targetRow) + Math.abs(currentCol - targetCol);
+        };
+
+        // Calculate total Manhattan distance (heuristic)
+        const calculateHeuristic = (state: Tile[]): number => {
+            return state.reduce((sum, tile) => {
+                if (tile.isEmpty) return sum;
+                return sum + getManhattanDistance(tile.id, tile.position);
+            }, 0);
+        };
+
+        // Get state key for visited tracking
+        const getStateKey = (state: Tile[]): string => {
+            return state.map(t => t.position).join(',');
+        };
+
+        // Get possible moves from current state
+        const getPossibleMoves = (state: Tile[]): Array<{ tile: Tile; direction: string; newState: Tile[] }> => {
+            const empty = state.find(t => t.isEmpty);
+            if (!empty) return [];
+
+            const emptyRow = Math.floor(empty.position / gridSize);
+            const emptyCol = empty.position % gridSize;
+
+            const moves: Array<{ tile: Tile; direction: string; newState: Tile[] }> = [];
+
+            // Check all four directions
+            const directions = [
+                { dr: -1, dc: 0, name: 'down' },  // tile moves down (empty moves up)
+                { dr: 1, dc: 0, name: 'up' },     // tile moves up (empty moves down)
+                { dr: 0, dc: -1, name: 'right' }, // tile moves right (empty moves left)
+                { dr: 0, dc: 1, name: 'left' }    // tile moves left (empty moves right)
+            ];
+
+            for (const dir of directions) {
+                const newRow = emptyRow + dir.dr;
+                const newCol = emptyCol + dir.dc;
+
+                if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize) {
+                    const newPos = newRow * gridSize + newCol;
+                    const tileToMove = state.find(t => t.position === newPos);
+
+                    if (tileToMove && !tileToMove.isEmpty) {
+                        // Create new state
+                        const newState = state.map(t => {
+                            if (t.id === tileToMove.id) return { ...t, position: empty.position };
+                            if (t.id === empty.id) return { ...t, position: tileToMove.position };
+                            return { ...t };
+                        });
+
+                        moves.push({
+                            tile: tileToMove,
+                            direction: dir.name,
+                            newState
+                        });
+                    }
+                }
+            }
+
+            return moves;
+        };
+
+        // A* Search implementation with depth limit
+        interface SearchNode {
+            state: Tile[];
+            g: number; // cost from start
+            h: number; // heuristic to goal
+            f: number; // g + h
+            move: { tileId: number; direction: string } | null;
+            parent: SearchNode | null;
+        }
+
+        const startNode: SearchNode = {
+            state: tiles,
+            g: 0,
+            h: calculateHeuristic(tiles),
+            f: calculateHeuristic(tiles),
+            move: null,
+            parent: null
+        };
+
+        const openSet: SearchNode[] = [startNode];
+        const closedSet = new Set<string>();
+
+        // Adjust search depth based on grid size
+        const maxDepth = gridSize <= 3 ? 8 : gridSize === 4 ? 6 : 4;
+        const maxIterations = gridSize <= 3 ? 10000 : gridSize === 4 ? 5000 : 2000;
+        let iterations = 0;
+        let bestNode: SearchNode | null = null;
+
+        while (openSet.length > 0 && iterations < maxIterations) {
+            iterations++;
+
+            // Sort by f score and get best node
+            openSet.sort((a, b) => a.f - b.f);
+            const current = openSet.shift()!;
+
+            const stateKey = getStateKey(current.state);
+            if (closedSet.has(stateKey)) continue;
+            closedSet.add(stateKey);
+
+            // GOAL FOUND - Complete solution!
+            if (current.h === 0) {
+                console.log(`✅ Solution found in ${iterations} iterations`);
+
+                // Trace back complete path
+                const path: Array<{ tileId: number; direction: string }> = [];
+                let node: SearchNode | null = current;
+
+                while (node && node.parent) {
+                    if (node.move) path.unshift(node.move);
+                    node = node.parent;
+                }
+
+                console.log(`📊 Total steps to solve: ${path.length}`);
+
+                if (path.length > 0) {
+                    // Show more hints for larger grids
+                    let hintCount = 1;
+                    if (gridSize === 4) hintCount = Math.min(2, path.length);
+                    else if (gridSize === 5) hintCount = Math.min(3, path.length);
+                    else if (gridSize >= 6) hintCount = Math.min(4, path.length);
+
+                    const selectedMoves = path.slice(0, hintCount);
+                    setHintMoves(selectedMoves);
+                    setShowHint(true);
+                    setHintProgress({ current: 0, total: path.length }); // TOTAL steps!
+
+                    toast.success(`Solution: ${path.length} steps to solve!`);
+
+                    setTimeout(() => {
+                        setShowHint(false);
+                        setHintProgress(null);
+                    }, 8000);
+
+                    return;
+                }
+            }
+
+            // Explore neighbors
+            const possibleMoves = getPossibleMoves(current.state);
+
+            for (const move of possibleMoves) {
+                const newStateKey = getStateKey(move.newState);
+                if (closedSet.has(newStateKey)) continue;
+
+                const g = current.g + 1;
+                const h = calculateHeuristic(move.newState);
+                const f = g + h;
+
+                const neighbor: SearchNode = {
+                    state: move.newState,
+                    g,
+                    h,
+                    f,
+                    move: { tileId: move.tile.id, direction: move.direction },
+                    parent: current
+                };
+
+                // Check if this state is already in open set with worse score
+                const existingIndex = openSet.findIndex(n => getStateKey(n.state) === newStateKey);
+                if (existingIndex >= 0) {
+                    if (openSet[existingIndex].f > f) {
+                        openSet[existingIndex] = neighbor;
+                    }
+                } else {
+                    openSet.push(neighbor);
+                }
+            }
+        }
+
+        console.log(`⚠️ A* stopped after ${iterations} iterations without complete solution`);
+
+        // Fallback: if A* didn't find complete solution, suggest best immediate move
+        const possibleMoves = getPossibleMoves(tiles);
+        if (possibleMoves.length > 0) {
+            const bestMove = possibleMoves.reduce((best, move) => {
+                const moveH = calculateHeuristic(move.newState);
+                const bestH = calculateHeuristic(best.newState);
+                return moveH < bestH ? move : best;
+            });
+
+            setHintMoves([{ tileId: bestMove.tile.id, direction: bestMove.direction }]);
+            setShowHint(true);
+            setHintProgress({ current: 0, total: 1 });
+
+            toast("Showing best next move (puzzle too complex)", { icon: "💡" });
+
+            setTimeout(() => {
+                setShowHint(false);
+            }, 5000);
+        }
     };
 
     const addPlayCount = async (gameId: string) => {
@@ -351,6 +613,14 @@ function PlaySlidingPuzzle() {
                                     {showPreview ? <EyeOff size={16} /> : <Eye size={16} />}
                                     {showPreview ? "Hide" : "Preview"}
                                 </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={calculateHint}
+                                    className={showHint ? "bg-yellow-100 border-yellow-400" : ""}
+                                >
+                                    <Lightbulb size={16} />
+                                    {hintProgress ? `Hint ${hintProgress.current + 1}/${hintProgress.total}` : "Hint"}
+                                </Button>
                             </>
                         )}
                     </div>
@@ -381,10 +651,18 @@ function PlaySlidingPuzzle() {
                                 const sourceRow = Math.floor(tile.id / gridSize);
                                 const sourceCol = tile.id % gridSize;
 
+                                // Check if this tile has a hint
+                                const hintIndex = showHint ? hintMoves.findIndex(h => h.tileId === tile.id) : -1;
+                                const hint = hintIndex >= 0 ? hintMoves[hintIndex] : null;
+
+                                // Check if this tile should be animated (win animation)
+                                const isAnimated = isAnimatingWin && animatedTiles.has(tile.id);
+
                                 return (
                                     <div
                                         key={tile.id}
-                                        className={`absolute transition-all duration-200 ${tile.isEmpty
+                                        className={`absolute transition-all ${isAnimated ? "duration-300 scale-105" : "duration-200"
+                                            } ${tile.isEmpty
                                                 ? "opacity-0"
                                                 : "cursor-pointer hover:brightness-110"
                                             } ${isPaused ? "blur-sm" : ""}`}
@@ -398,11 +676,31 @@ function PlaySlidingPuzzle() {
                                                 : `url(${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image})`,
                                             backgroundSize: `${gridSize * tileSize}px ${gridSize * tileSize}px`,
                                             backgroundPosition: `-${sourceCol * tileSize}px -${sourceRow * tileSize}px`,
-                                            border: tile.isEmpty ? "none" : "2px solid white",
+                                            border: tile.isEmpty ? "none" : isAnimated ? "3px solid #22c55e" : "2px solid white",
                                             borderRadius: "4px",
+                                            boxShadow: isAnimated ? "0 0 20px rgba(34, 197, 94, 0.8)" : "none",
                                         }}
-                                        onClick={() => !tile.isEmpty && moveTile(tile)}
-                                    />
+                                        onClick={() => !tile.isEmpty && !isAnimatingWin && moveTile(tile)}
+                                    >
+                                        {/* Win Animation Overlay */}
+                                        {isAnimated && (
+                                            <div className="absolute inset-0 bg-green-500/20 rounded animate-pulse" />
+                                        )}
+
+                                        {/* Hint Arrow Overlay */}
+                                        {hint && !isAnimatingWin && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-yellow-400/60 rounded animate-pulse">
+                                                {/* Step Number Badge */}
+                                                <div className="absolute top-1 left-1 bg-white text-black font-bold rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg">
+                                                    {hintIndex + 1}
+                                                </div>
+                                                {hint.direction === "up" && <ArrowUp size={tileSize / 2} className="text-white drop-shadow-lg" strokeWidth={3} />}
+                                                {hint.direction === "down" && <ArrowDown size={tileSize / 2} className="text-white drop-shadow-lg" strokeWidth={3} />}
+                                                {hint.direction === "left" && <ArrowLeftIcon size={tileSize / 2} className="text-white drop-shadow-lg" strokeWidth={3} />}
+                                                {hint.direction === "right" && <ArrowRight size={tileSize / 2} className="text-white drop-shadow-lg" strokeWidth={3} />}
+                                            </div>
+                                        )}
+                                    </div>
                                 );
                             })}
                         </div>
