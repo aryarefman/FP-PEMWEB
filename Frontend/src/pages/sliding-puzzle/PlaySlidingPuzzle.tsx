@@ -4,7 +4,7 @@ import api from "@/api/axios";
 import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import { Typography } from "@/components/ui/typography";
-import { ArrowLeft, Trophy, Pause, Play, RotateCcw, Eye, EyeOff, Lightbulb, ArrowUp, ArrowDown, ArrowLeftIcon, ArrowRight } from "lucide-react";
+import { ArrowLeft, Trophy, Pause, Play, RotateCcw, Eye, EyeOff, Lightbulb, ArrowUp, ArrowDown, ArrowLeftIcon, ArrowRight, Loader2 } from "lucide-react";
 
 interface SlidingPuzzleData {
     id: string;
@@ -22,6 +22,23 @@ interface Tile {
     position: number;
     isEmpty: boolean;
 }
+
+
+// Initial hint calculation based on difficulty (grid size)
+const getMaxSteps = (gridSize: number) => {
+    switch (gridSize) {
+        case 3: return 31;
+        case 4: return 80;
+        case 5: return 200;
+        case 6: return 500;
+        default: return 100;
+    }
+};
+
+const getInitialHints = (gridSize: number) => {
+    const maxSteps = getMaxSteps(gridSize);
+    return Math.floor(maxSteps * 0.3);
+};
 
 function PlaySlidingPuzzle() {
     const { id } = useParams();
@@ -138,7 +155,7 @@ function PlaySlidingPuzzle() {
         setShowHint(false);
         setHintMoves([]);
         setHintProgress(null);
-        setUserHintsLeft(3); // Reset hints
+        setUserHintsLeft(getInitialHints(gridSize)); // Reset hints dynamically
         setIsAnimatingWin(false);
         setAnimatedTiles(new Set());
     }, [puzzle]);
@@ -257,216 +274,79 @@ function PlaySlidingPuzzle() {
         return currentTiles.every((tile) => tile.id === tile.position);
     };
 
+    const [isCalculatingHint, setIsCalculatingHint] = useState(false);
+
+    // Initial hint calculation based on difficulty (grid size)
+
+
     const calculateHint = () => {
-        if (!puzzle || !isStarted || isFinished || isPaused) return;
+        if (!puzzle || !isStarted || isFinished || isPaused || isCalculatingHint) return;
         if (userHintsLeft <= 0) {
             toast.error("No hints left!");
             return;
         }
 
-
+        setIsCalculatingHint(true);
         const gridSize = puzzle.grid_size;
-        const emptyTile = tiles.find((t) => t.isEmpty);
-        if (!emptyTile) return;
 
-        // Calculate Manhattan distance for a tile
-        const getManhattanDistance = (tileId: number, position: number): number => {
-            const currentRow = Math.floor(position / gridSize);
-            const currentCol = position % gridSize;
-            const targetRow = Math.floor(tileId / gridSize);
-            const targetCol = tileId % gridSize;
-            return Math.abs(currentRow - targetRow) + Math.abs(currentCol - targetCol);
-        };
+        const worker = new Worker(new URL('../../workers/puzzleSolver.worker.ts', import.meta.url), { type: 'module' });
 
-        // Calculate total Manhattan distance (heuristic)
-        const calculateHeuristic = (state: Tile[]): number => {
-            return state.reduce((sum, tile) => {
-                if (tile.isEmpty) return sum;
-                return sum + getManhattanDistance(tile.id, tile.position);
-            }, 0);
-        };
+        worker.postMessage({
+            tiles,
+            gridSize
+        });
 
-        // Get state key for visited tracking
-        const getStateKey = (state: Tile[]): string => {
-            return state.map(t => t.position).join(',');
-        };
+        worker.onmessage = (e) => {
+            const { success, found, path, error } = e.data;
+            setIsCalculatingHint(false);
+            worker.terminate();
 
-        // Get possible moves from current state
-        const getPossibleMoves = (state: Tile[]): Array<{ tile: Tile; direction: string; newState: Tile[] }> => {
-            const empty = state.find(t => t.isEmpty);
-            if (!empty) return [];
-
-            const emptyRow = Math.floor(empty.position / gridSize);
-            const emptyCol = empty.position % gridSize;
-
-            const moves: Array<{ tile: Tile; direction: string; newState: Tile[] }> = [];
-
-            // Check all four directions
-            const directions = [
-                { dr: -1, dc: 0, name: 'down' },  // tile moves down (empty moves up)
-                { dr: 1, dc: 0, name: 'up' },     // tile moves up (empty moves down)
-                { dr: 0, dc: -1, name: 'right' }, // tile moves right (empty moves left)
-                { dr: 0, dc: 1, name: 'left' }    // tile moves left (empty moves right)
-            ];
-
-            for (const dir of directions) {
-                const newRow = emptyRow + dir.dr;
-                const newCol = emptyCol + dir.dc;
-
-                if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize) {
-                    const newPos = newRow * gridSize + newCol;
-                    const tileToMove = state.find(t => t.position === newPos);
-
-                    if (tileToMove && !tileToMove.isEmpty) {
-                        // Create new state
-                        const newState = state.map(t => {
-                            if (t.id === tileToMove.id) return { ...t, position: empty.position };
-                            if (t.id === empty.id) return { ...t, position: tileToMove.position };
-                            return { ...t };
-                        });
-
-                        moves.push({
-                            tile: tileToMove,
-                            direction: dir.name,
-                            newState
-                        });
-                    }
-                }
+            if (!success) {
+                console.error(error);
+                toast.error("Failed to calculate hint");
+                return;
             }
 
-            return moves;
-        };
-
-        // A* Search implementation with depth limit
-        interface SearchNode {
-            state: Tile[];
-            g: number; // cost from start
-            h: number; // heuristic to goal
-            f: number; // g + h
-            move: { tileId: number; direction: string } | null;
-            parent: SearchNode | null;
-        }
-
-        const startNode: SearchNode = {
-            state: tiles,
-            g: 0,
-            h: calculateHeuristic(tiles),
-            f: calculateHeuristic(tiles),
-            move: null,
-            parent: null
-        };
-
-        const openSet: SearchNode[] = [startNode];
-        const closedSet = new Set<string>();
-
-        // Adjust search depth based on grid size
-        const maxIterations = gridSize <= 3 ? 10000 : gridSize === 4 ? 5000 : 2000;
-        let iterations = 0;
-
-        while (openSet.length > 0 && iterations < maxIterations) {
-            iterations++;
-
-            // Sort by f score and get best node
-            openSet.sort((a, b) => a.f - b.f);
-            const current = openSet.shift()!;
-
-            const stateKey = getStateKey(current.state);
-            if (closedSet.has(stateKey)) continue;
-            closedSet.add(stateKey);
-
-            // GOAL FOUND - Complete solution!
-            if (current.h === 0) {
-                console.log(`✅ Solution found in ${iterations} iterations`);
-
-                // Trace back complete path
-                const path: Array<{ tileId: number; direction: string }> = [];
-                let node: SearchNode | null = current;
-
-                while (node && node.parent) {
-                    if (node.move) path.unshift(node.move);
-                    node = node.parent;
+            if (path.length > 0) {
+                // Determine how many steps to show
+                let stepsToShow = 1;
+                if (found) {
+                    if (gridSize === 4) stepsToShow = Math.min(2, path.length);
+                    else if (gridSize === 5) stepsToShow = Math.min(3, path.length);
+                    else if (gridSize >= 6) stepsToShow = Math.min(4, path.length);
                 }
 
-                console.log(`📊 Total steps to solve: ${path.length}`);
+                const selectedMoves = path.slice(0, stepsToShow);
+                setHintMoves(selectedMoves);
+                setShowHint(true);
 
-                if (path.length > 0) {
-                    // Show more hints for larger grids
-                    let hintCount = 1;
-                    if (gridSize === 4) hintCount = Math.min(2, path.length);
-                    else if (gridSize === 5) hintCount = Math.min(3, path.length);
-                    else if (gridSize >= 6) hintCount = Math.min(4, path.length);
+                // Show total steps if solution found, otherwise just 1
+                setHintProgress({ current: 0, total: found ? path.length : 1 });
 
-                    const selectedMoves = path.slice(0, hintCount);
-                    setHintMoves(selectedMoves);
-                    setShowHint(true);
-                    setHintProgress({ current: 0, total: path.length }); // TOTAL steps!
+                setUserHintsLeft(prev => prev - 1);
 
-                    setUserHintsLeft(prev => prev - 1);
+                if (found) {
                     toast.success(`Solution: ${path.length} steps to solve!`);
-
-                    setTimeout(() => {
-                        setShowHint(false);
-                        setHintProgress(null);
-                    }, 8000);
-
-                    return;
-                }
-            }
-
-            // Explore neighbors
-            const possibleMoves = getPossibleMoves(current.state);
-
-            for (const move of possibleMoves) {
-                const newStateKey = getStateKey(move.newState);
-                if (closedSet.has(newStateKey)) continue;
-
-                const g = current.g + 1;
-                const h = calculateHeuristic(move.newState);
-                const f = g + h;
-
-                const neighbor: SearchNode = {
-                    state: move.newState,
-                    g,
-                    h,
-                    f,
-                    move: { tileId: move.tile.id, direction: move.direction },
-                    parent: current
-                };
-
-                // Check if this state is already in open set with worse score
-                const existingIndex = openSet.findIndex(n => getStateKey(n.state) === newStateKey);
-                if (existingIndex >= 0) {
-                    if (openSet[existingIndex].f > f) {
-                        openSet[existingIndex] = neighbor;
-                    }
                 } else {
-                    openSet.push(neighbor);
+                    toast("Showing best next move (puzzle too complex)", { icon: "💡" });
                 }
+
+                const timeout = found ? 8000 : 5000;
+                setTimeout(() => {
+                    setShowHint(false);
+                    setHintProgress(null);
+                }, timeout);
+            } else {
+                toast.error("Could not find a valid move.");
             }
-        }
+        };
 
-        console.log(`⚠️ A* stopped after ${iterations} iterations without complete solution`);
-
-        // Fallback: if A* didn't find complete solution, suggest best immediate move
-        const possibleMoves = getPossibleMoves(tiles);
-        if (possibleMoves.length > 0) {
-            const bestMove = possibleMoves.reduce((best, move) => {
-                const moveH = calculateHeuristic(move.newState);
-                const bestH = calculateHeuristic(best.newState);
-                return moveH < bestH ? move : best;
-            });
-
-            setHintMoves([{ tileId: bestMove.tile.id, direction: bestMove.direction }]);
-            setShowHint(true);
-            setHintProgress({ current: 0, total: 1 });
-
-            setUserHintsLeft(prev => prev - 1);
-            toast("Showing best next move (puzzle too complex)", { icon: "💡" });
-
-            setTimeout(() => {
-                setShowHint(false);
-            }, 5000);
-        }
+        worker.onerror = (err) => {
+            console.error("Worker error:", err);
+            setIsCalculatingHint(false);
+            worker.terminate();
+            toast.error("Something went wrong calculating the hint.");
+        };
     };
 
     const addPlayCount = async (gameId: string) => {
@@ -699,14 +579,22 @@ function PlaySlidingPuzzle() {
                                 <Button
                                     variant="outline"
                                     onClick={calculateHint}
-                                    disabled={userHintsLeft <= 0 || showHint}
+                                    disabled={userHintsLeft <= 0 || showHint || isCalculatingHint}
                                     className={`relative transition-all ${showHint ? "bg-yellow-100 border-yellow-400 text-yellow-700" : ""} ${userHintsLeft <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
                                 >
-                                    <Lightbulb size={16} className={showHint ? "fill-yellow-500" : ""} />
-                                    {hintProgress
-                                        ? `Showing ${hintProgress.current + 1}/${hintProgress.total}`
-                                        : `Hint (${userHintsLeft})`
-                                    }
+                                    {isCalculatingHint ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin mr-2" /> Calculating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Lightbulb size={16} className={showHint ? "fill-yellow-500" : ""} />
+                                            {hintProgress
+                                                ? `Showing ${hintProgress.current + 1}/${hintProgress.total}`
+                                                : `Hint`
+                                            }
+                                        </>
+                                    )}
                                 </Button>
                             </>
                         )}
