@@ -54,21 +54,23 @@ export abstract class GameService {
         },
         liked: current_user_id
           ? {
-              where: { user_id: current_user_id },
-              select: { id: true },
-            }
+            where: { user_id: current_user_id },
+            select: { id: true },
+          }
           : undefined,
         is_published: is_private,
         game_template: {
           select: {
+            id: true,
+            slug: true,
             name: true,
           },
         },
         creator: user_id
           ? undefined
           : {
-              select: { id: true, username: true },
-            },
+            select: { id: true, username: true },
+          },
       },
       orderBy: [
         { name: query.orderByName },
@@ -91,7 +93,11 @@ export abstract class GameService {
 
     const cleanedResult = paginationResult.data.map(game => ({
       ...game,
-      game_template: game.game_template.name,
+      game_template: {
+        id: game.game_template.id,
+        slug: game.game_template.slug,
+        name: game.game_template.name,
+      },
       creator: undefined,
       is_published: is_private ? game.is_published : undefined,
       creator_id: user_id ? undefined : game.creator.id,
