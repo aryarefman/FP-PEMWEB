@@ -37,6 +37,7 @@ function CreateSlidingPuzzle() {
     const [puzzleImage, setPuzzleImage] = useState<File | null>(null);
     const [gridSize, setGridSize] = useState("4");
     const [timeLimit, setTimeLimit] = useState("");
+    const [maxHintPercent, setMaxHintPercent] = useState("30");
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (publish = false) => {
@@ -65,6 +66,7 @@ function CreateSlidingPuzzle() {
             formData.append("puzzle_image", puzzleImage);
             formData.append("grid_size", gridSize);
             if (timeLimit) formData.append("time_limit", timeLimit);
+            formData.append("max_hint_percent", maxHintPercent);
             formData.append("is_publish_immediately", publish.toString());
 
             await api.post(
@@ -195,6 +197,21 @@ function CreateSlidingPuzzle() {
                             />
                             <Typography variant="small" className="text-gray-500 mt-1">
                                 Optional. Leave empty for no time limit.
+                            </Typography>
+                        </div>
+
+                        <div>
+                            <FormField
+                                label="Max Hints (%)"
+                                placeholder="30"
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={maxHintPercent}
+                                onChange={(e) => setMaxHintPercent(e.target.value)}
+                            />
+                            <Typography variant="small" className="text-gray-500 mt-1">
+                                Percentage of estimated max steps given as hints (0-100). Default is 30%.
                             </Typography>
                         </div>
                     </div>

@@ -39,6 +39,7 @@ interface PuzzleData {
         puzzle_image: string;
         grid_size: number;
         time_limit?: number;
+        max_hint_percent?: number;
     };
 }
 
@@ -56,6 +57,7 @@ function EditSlidingPuzzle() {
     const [puzzleImage, setPuzzleImage] = useState<File | null>(null);
     const [gridSize, setGridSize] = useState("4");
     const [timeLimit, setTimeLimit] = useState("");
+    const [maxHintPercent, setMaxHintPercent] = useState("30");
     const [isPublished, setIsPublished] = useState(false);
 
     useEffect(() => {
@@ -71,6 +73,7 @@ function EditSlidingPuzzle() {
                 setDescription(data.description || "");
                 setGridSize(data.game_json.grid_size.toString());
                 setTimeLimit(data.game_json.time_limit?.toString() || "");
+                setMaxHintPercent(data.game_json.max_hint_percent?.toString() || "30");
                 setIsPublished(data.is_published);
             } catch (err) {
                 console.error("Failed to fetch puzzle:", err);
@@ -100,6 +103,7 @@ function EditSlidingPuzzle() {
             if (puzzleImage) formData.append("puzzle_image", puzzleImage);
             formData.append("grid_size", gridSize);
             if (timeLimit) formData.append("time_limit", timeLimit);
+            formData.append("max_hint_percent", maxHintPercent);
             formData.append("is_published", isPublished.toString());
 
             await api.patch(
@@ -265,6 +269,21 @@ function EditSlidingPuzzle() {
                             />
                             <Typography variant="small" className="text-gray-500 mt-1">
                                 Optional. Leave empty for no time limit.
+                            </Typography>
+                        </div>
+
+                        <div>
+                            <FormField
+                                label="Max Hints (%)"
+                                placeholder="30"
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={maxHintPercent}
+                                onChange={(e) => setMaxHintPercent(e.target.value)}
+                            />
+                            <Typography variant="small" className="text-gray-500 mt-1">
+                                Percentage of estimated max steps given as hints (0-100). Default is 30%.
                             </Typography>
                         </div>
 

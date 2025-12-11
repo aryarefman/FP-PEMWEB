@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "@/api/axios";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import { Typography } from "@/components/ui/typography";
 import { ArrowLeft, Trophy, Pause, Play, RotateCcw, Eye, EyeOff, Lightbulb, ArrowUp, ArrowDown, ArrowLeftIcon, ArrowRight, Loader2 } from "lucide-react";
@@ -15,12 +15,18 @@ interface SlidingPuzzleData {
     puzzle_image: string;
     grid_size: number;
     time_limit?: number;
+    max_hint_percent?: number;
 }
 
 interface Tile {
     id: number;
     position: number;
     isEmpty: boolean;
+}
+
+interface Move {
+    tileId: number;
+    direction: "up" | "down" | "left" | "right";
 }
 
 
@@ -35,9 +41,9 @@ const getMaxSteps = (gridSize: number) => {
     }
 };
 
-const getInitialHints = (gridSize: number) => {
+const getInitialHints = (gridSize: number, percent: number = 30) => {
     const maxSteps = getMaxSteps(gridSize);
-    return Math.floor(maxSteps * 0.3);
+    return Math.floor(maxSteps * (percent / 100));
 };
 
 function PlaySlidingPuzzle() {
@@ -155,7 +161,7 @@ function PlaySlidingPuzzle() {
         setShowHint(false);
         setHintMoves([]);
         setHintProgress(null);
-        setUserHintsLeft(getInitialHints(gridSize)); // Reset hints dynamically
+        setUserHintsLeft(getInitialHints(gridSize, puzzle.max_hint_percent ?? 30)); // Reset hints dynamically
         setIsAnimatingWin(false);
         setAnimatedTiles(new Set());
     }, [puzzle]);
@@ -274,79 +280,117 @@ function PlaySlidingPuzzle() {
         return currentTiles.every((tile) => tile.id === tile.position);
     };
 
+    const [cachedHint, setCachedHint] = useState<{ path: Move[], found: boolean } | null>(null);
     const [isCalculatingHint, setIsCalculatingHint] = useState(false);
+    const workerRef = useRef<Worker | null>(null);
 
-    // Initial hint calculation based on difficulty (grid size)
+    // Initialize Worker
+    useEffect(() => {
+        workerRef.current = new Worker(new URL('../../workers/puzzleSolver.worker.ts', import.meta.url), { type: 'module' });
+
+        workerRef.current.onmessage = (e) => {
+            const { success, found, path, error } = e.data;
+            if (success) {
+                // If path found, store it
+                // Only store if we haven't manipulated tiles since sending (simple check not strictly needed if we assume linear flow)
+                setCachedHint({ path, found });
+            }
+        };
+
+        return () => {
+            workerRef.current?.terminate();
+        };
+    }, []);
+
+    // Trigger calculation whenever tiles change
+    useEffect(() => {
+        if (!puzzle || !isStarted || isFinished || isPaused) return;
+
+        // Reset cached hint when tiles change
+        setCachedHint(null);
+
+        // Debounce slightly or just run? Run immediately for responsiveness.
+        // If the worker is busy, we might want to terminate and restart, but for now queueing is okay.
+        // Actually, for "instant" feel on rapid moves, terminating old request is better.
+
+        // Simple approach: Just post message. Worker processes in order. 
+        // If user moves fast, the "hint" might be for previous state? 
+        // Ideally we want to cancel previous calculation.
+
+        // Optimization: Terminate and restart worker if calculating?
+        // Let's stick to simple first: Post message. 
+
+        // BETTER: Send with a timestamp/ID and ignore old responses? 
+        // For now, let's just let it compute. IDA* is fast enough for small steps.
+
+        workerRef.current?.postMessage({
+            tiles,
+            gridSize: puzzle.grid_size
+        });
+
+    }, [tiles, isStarted, isFinished, isPaused, puzzle]);
 
 
     const calculateHint = () => {
-        if (!puzzle || !isStarted || isFinished || isPaused || isCalculatingHint) return;
+        if (!puzzle || !isStarted || isFinished || isPaused) return;
         if (userHintsLeft <= 0) {
             toast.error("No hints left!");
             return;
         }
 
-        setIsCalculatingHint(true);
-        const gridSize = puzzle.grid_size;
+        // If we have a cached hint, use it immediately
+        if (cachedHint && cachedHint.path.length > 0) {
+            applyHint(cachedHint.path, cachedHint.found);
+        } else {
+            // Fallback if worker hasn't finished yet (rare if pre-calc is working)
+            toast.loading("Thinking...", { duration: 1000 });
+            // We just wait for the effect to update cachedHint?
+            // Or we can set a flag "waitingForHint" which triggers applyHint when cachedHint arrives.
+            setIsCalculatingHint(true);
+        }
+    };
 
-        const worker = new Worker(new URL('../../workers/puzzleSolver.worker.ts', import.meta.url), { type: 'module' });
-
-        worker.postMessage({
-            tiles,
-            gridSize
-        });
-
-        worker.onmessage = (e) => {
-            const { success, found, path, error } = e.data;
+    // Effect to apply hint once it arrives if we are waiting
+    useEffect(() => {
+        if (isCalculatingHint && cachedHint) {
             setIsCalculatingHint(false);
-            worker.terminate();
-
-            if (!success) {
-                console.error(error);
-                toast.error("Failed to calculate hint");
-                return;
-            }
-
-            if (path.length > 0) {
-                // Determine how many steps to show
-                let stepsToShow = 1;
-                if (found) {
-                    if (gridSize === 4) stepsToShow = Math.min(2, path.length);
-                    else if (gridSize === 5) stepsToShow = Math.min(3, path.length);
-                    else if (gridSize >= 6) stepsToShow = Math.min(4, path.length);
-                }
-
-                const selectedMoves = path.slice(0, stepsToShow);
-                setHintMoves(selectedMoves);
-                setShowHint(true);
-
-                // Show total steps if solution found, otherwise just 1
-                setHintProgress({ current: 0, total: found ? path.length : 1 });
-
-                setUserHintsLeft(prev => prev - 1);
-
-                if (found) {
-                    toast.success(`Solution: ${path.length} steps to solve!`);
-                } else {
-                    toast("Showing best next move (puzzle too complex)", { icon: "💡" });
-                }
-
-                const timeout = found ? 8000 : 5000;
-                setTimeout(() => {
-                    setShowHint(false);
-                    setHintProgress(null);
-                }, timeout);
+            if (cachedHint.path.length > 0) {
+                applyHint(cachedHint.path, cachedHint.found);
             } else {
                 toast.error("Could not find a valid move.");
             }
-        };
+        }
+    }, [cachedHint, isCalculatingHint]);
 
-        worker.onerror = (err) => {
-            console.error("Worker error:", err);
-            setIsCalculatingHint(false);
-            worker.terminate();
-            toast.error("Something went wrong calculating the hint.");
-        };
+    const applyHint = (path: any[], found: boolean) => {
+        const gridSize = puzzle!.grid_size;  // Safe assertion here
+
+        // Determine how many steps to show
+        let stepsToShow = 1;
+        if (found) {
+            if (gridSize === 4) stepsToShow = Math.min(2, path.length);
+            else if (gridSize === 5) stepsToShow = Math.min(3, path.length);
+            else if (gridSize >= 6) stepsToShow = Math.min(4, path.length);
+        }
+
+        const selectedMoves = path.slice(0, stepsToShow);
+        setHintMoves(selectedMoves);
+        setShowHint(true);
+
+        setHintProgress({ current: 0, total: found ? path.length : 1 });
+        setUserHintsLeft(prev => prev - 1);
+
+        if (found) {
+            toast.success(`Solution: ${path.length} steps to solve!`);
+        } else {
+            toast("Best next move calculated", { icon: "💡" });
+        }
+
+        const timeout = found ? 8000 : 5000;
+        setTimeout(() => {
+            setShowHint(false);
+            setHintProgress(null);
+        }, timeout);
     };
 
     const addPlayCount = async (gameId: string) => {

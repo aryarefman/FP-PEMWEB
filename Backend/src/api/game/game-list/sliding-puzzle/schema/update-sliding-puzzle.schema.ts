@@ -16,6 +16,7 @@ export const UpdateSlidingPuzzleSchema = z.object({
     }).optional(),
     grid_size: z.coerce.number().min(3).max(6).optional(),
     time_limit: z.coerce.number().min(60).max(3600).optional(),
+    max_hint_percent: z.coerce.number().min(0).max(100).optional(),
 });
 
 export type IUpdateSlidingPuzzle = z.infer<typeof UpdateSlidingPuzzleSchema>;

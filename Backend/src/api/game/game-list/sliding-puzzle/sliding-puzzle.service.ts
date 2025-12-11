@@ -36,6 +36,7 @@ export abstract class SlidingPuzzleService {
             puzzle_image: puzzleImagePath,
             grid_size: data.grid_size,
             time_limit: data.time_limit,
+            max_hint_percent: data.max_hint_percent ?? 30, // Default 30%
         };
 
         const newGame = await prisma.games.create({
@@ -172,6 +173,7 @@ export abstract class SlidingPuzzleService {
             puzzle_image: puzzleImagePath,
             grid_size: data.grid_size ?? oldPuzzleJson?.grid_size ?? 4,
             time_limit: data.time_limit ?? oldPuzzleJson?.time_limit,
+            max_hint_percent: data.max_hint_percent ?? oldPuzzleJson?.max_hint_percent ?? 30,
         };
 
         const updatedGame = await prisma.games.update({
@@ -251,6 +253,7 @@ export abstract class SlidingPuzzleService {
             puzzle_image: puzzleJson.puzzle_image,
             grid_size: puzzleJson.grid_size,
             time_limit: puzzleJson.time_limit,
+            max_hint_percent: puzzleJson.max_hint_percent,
             is_published: game.is_published,
         };
     }
