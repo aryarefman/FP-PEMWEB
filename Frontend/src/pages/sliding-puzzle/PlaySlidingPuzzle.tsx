@@ -409,10 +409,10 @@ function PlaySlidingPuzzle() {
                             <Typography variant="h3" className="text-center">{puzzle.name}</Typography>
                             <div className="flex justify-center">
                                 <div
-                                    className="relative bg-gray-800 p-2 rounded-lg shadow-2xl opacity-50"
+                                    className="relative bg-gray-800 rounded-lg shadow-2xl opacity-50 overflow-hidden"
                                     style={{
-                                        width: `${gridSize * Math.min(500 / gridSize, 120) + 16}px`,
-                                        height: `${gridSize * Math.min(500 / gridSize, 120) + 16}px`,
+                                        width: `${gridSize * Math.min(500 / gridSize, 120)}px`,
+                                        height: `${gridSize * Math.min(500 / gridSize, 120)}px`,
                                     }}
                                 >
                                     {/* Simply show the full image if won, or current tiles if lost */}
@@ -434,10 +434,10 @@ function PlaySlidingPuzzle() {
                                                     key={tile.id}
                                                     className="absolute"
                                                     style={{
-                                                        width: `${size - 4}px`,
-                                                        height: `${size - 4}px`,
-                                                        left: `${col * size + 2}px`,
-                                                        top: `${row * size + 2}px`,
+                                                        width: `${size}px`,
+                                                        height: `${size}px`,
+                                                        left: `${col * size}px`,
+                                                        top: `${row * size}px`,
                                                         backgroundImage: tile.isEmpty ? "none" : `url(${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image})`,
                                                         backgroundSize: `${gridSize * size}px ${gridSize * size}px`,
                                                         backgroundPosition: `-${sourceCol * size}px -${sourceRow * size}px`,
@@ -621,10 +621,10 @@ function PlaySlidingPuzzle() {
                     {/* Puzzle Grid */}
                     <div className="flex justify-center">
                         <div
-                            className="relative bg-gray-800 p-2 rounded-lg shadow-2xl"
+                            className="relative bg-gray-800 rounded-lg shadow-2xl overflow-hidden"
                             style={{
-                                width: `${gridSize * tileSize + 16}px`,
-                                height: `${gridSize * tileSize + 16}px`,
+                                width: `${gridSize * tileSize}px`,
+                                height: `${gridSize * tileSize}px`,
                             }}
                         >
                             {tiles.map((tile) => {
@@ -649,10 +649,10 @@ function PlaySlidingPuzzle() {
                                                 : "cursor-pointer hover:brightness-110"
                                             } ${isPaused ? "blur-sm" : ""}`}
                                         style={{
-                                            width: `${tileSize - 4}px`,
-                                            height: `${tileSize - 4}px`,
-                                            left: `${col * tileSize + 2}px`,
-                                            top: `${row * tileSize + 2}px`,
+                                            width: `${tileSize}px`,
+                                            height: `${tileSize}px`,
+                                            left: `${col * tileSize}px`,
+                                            top: `${row * tileSize}px`,
                                             backgroundImage: tile.isEmpty
                                                 ? "none"
                                                 : `url(${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image})`,
