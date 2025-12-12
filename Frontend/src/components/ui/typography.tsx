@@ -14,7 +14,7 @@ type Variant =
   | "inlineCode"
   | "list";
 
-interface TypographyProps {
+interface TypographyProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode;
   variant?: Variant;
   className?: string;
@@ -24,11 +24,18 @@ export function Typography({
   children,
   variant = "p",
   className = "",
+  style,
+  ...props
 }: TypographyProps) {
+
+
+
   switch (variant) {
     case "h1":
       return (
         <h1
+          {...props}
+          style={style}
           className={`scroll-m-20 text-center text-4xl font-extrabold tracking-tight text-balance ${className}`}
         >
           {children}
@@ -37,6 +44,8 @@ export function Typography({
     case "h2":
       return (
         <h2
+          {...props}
+          style={style}
           className={`scroll-m-20 pb-2 text-3xl font-semibold tracking-tight ${className}`}
         >
           {children}
@@ -45,6 +54,8 @@ export function Typography({
     case "h3":
       return (
         <h3
+          {...props}
+          style={style}
           className={`scroll-m-20 text-2xl font-semibold tracking-tight ${className}`}
         >
           {children}
@@ -53,42 +64,46 @@ export function Typography({
     case "h4":
       return (
         <h4
+          {...props}
+          style={style}
           className={`scroll-m-20 text-xl font-semibold tracking-tight ${className}`}
         >
           {children}
         </h4>
       );
     case "p":
-      return <p className={`not-first:mt-2yp ${className}`}>{children}</p>;
+      return <p {...props} style={style} className={`not-first:mt-2yp ${className}`}>{children}</p>;
     case "blockquote":
       return (
-        <blockquote className={`mt-2 border-l-2 pl-2 italic ${className}`}>
+        <blockquote {...props} style={style} className={`mt-2 border-l-2 pl-2 italic ${className}`}>
           {children}
         </blockquote>
       );
     case "lead":
       return (
-        <p className={`text-muted-foreground text-xl ${className}`}>
+        <p {...props} style={style} className={`text-muted-foreground text-xl ${className}`}>
           {children}
         </p>
       );
     case "large":
-      return <div className={`text-lg ${className}`}>{children}</div>;
+      return <div {...props} style={style} className={`text-lg ${className}`}>{children}</div>;
     case "small":
       return (
-        <small className={`text-sm leading-none ${className}`}>
+        <small {...props} style={style} className={`text-sm leading-none ${className}`}>
           {children}
         </small>
       );
     case "muted":
       return (
-        <p className={`text-muted-foreground text-sm ${className}`}>
+        <p {...props} style={style} className={`text-muted-foreground text-sm ${className}`}>
           {children}
         </p>
       );
     case "inlineCode":
       return (
         <code
+          {...props}
+          style={style}
           className={`bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm ${className}`}
         >
           {children}
@@ -96,11 +111,11 @@ export function Typography({
       );
     case "list":
       return (
-        <ul className={`my-6 ml-6 list-disc [&>li]:mt-2 ${className}`}>
+        <ul {...props} style={style} className={`my-6 ml-6 list-disc [&>li]:mt-2 ${className}`}>
           {children}
         </ul>
       );
     default:
-      return <p className={className}>{children}</p>;
+      return <p {...props} style={style} className={className}>{children}</p>;
   }
 }

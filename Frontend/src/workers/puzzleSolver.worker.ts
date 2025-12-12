@@ -185,13 +185,6 @@ function getNeighbors(emptyIdx: number, size: number) {
     const moves = [];
 
     // Up (Empty moves up, Tile above moves Down)
-    if (r > 0) moves.push({ to: emptyIdx - size, dir: 'up' });
-    // Wait, directions:
-    // If empty at (2,2) moves to (1,2), the tile at (1,2) moves DOWN.
-    // UI expects direction arrow ON THE TILE indicating where TILE moves.
-    // So if Empty(2,2) swaps with Tile(1,2), Tile moves DOWN to (2,2).
-    // My code: to: emptyIdx - size (the position of the tile). 
-    // dir: 'down' (because tile moves down).
     if (r > 0) moves.push({ to: emptyIdx - size, dir: 'down' });
 
     // Down (Empty moves down, Tile below moves Up)

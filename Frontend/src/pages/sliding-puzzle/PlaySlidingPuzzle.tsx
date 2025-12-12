@@ -4,7 +4,18 @@ import api from "@/api/axios";
 import { useState, useEffect, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import { Typography } from "@/components/ui/typography";
-import { ArrowLeft, Trophy, Pause, Play, RotateCcw, Eye, EyeOff, Lightbulb, ArrowUp, ArrowDown, ArrowLeftIcon, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, Trophy, Pause, Play, Lightbulb, ArrowUp, ArrowDown, ArrowLeftIcon, ArrowRight, Loader2, RotateCcw, Eye, EyeOff, LayoutGrid, Timer, Shapes, Volume2, VolumeX } from "lucide-react";
+import phoenixImg from "./images/phoenix.png";
+import loadingImg from "./images/loading.png";
+import fireHorseImg from "./images/firehorse.png";
+import blueHorseImg from "./images/bluehorse.png";
+import blueDragonImg from "./images/bluedragon.png";
+import redDragonImg from "./images/reddragon.png";
+import countdownSfx from "./Audio/countdown.mp3";
+import gameSfx from "./Audio/game.mp3";
+import helloSfx from "./Audio/hello.mp3";
+import winSfx from "./Audio/win.mp3";
+import leftTigerImg from "./images/lefttigerwin.png";
 
 interface SlidingPuzzleData {
     id: string;
@@ -65,9 +76,38 @@ function PlaySlidingPuzzle() {
     const [hintMoves, setHintMoves] = useState<{ tileId: number; direction: string }[]>([]);
     const [hintProgress, setHintProgress] = useState<{ current: number; total: number } | null>(null);
     const [isAnimatingWin, setIsAnimatingWin] = useState(false);
-    const [animatedTiles, setAnimatedTiles] = useState<Set<number>>(new Set());
-    const [userHintsLeft, setUserHintsLeft] = useState(3); // Default 3 hints per game
+    const [userHintsLeft, setUserHintsLeft] = useState(3);
     const [gameResult, setGameResult] = useState<'won' | 'lost' | null>(null);
+    const [isLoadingGame, setIsLoadingGame] = useState(false); // Loading state after clicking Start
+    const [countdown, setCountdown] = useState<string>('3');
+    const [isMuted, setIsMuted] = useState(false);
+
+    // Dark mode styles
+    const styles = {
+        background: '#000000',
+        color: '#ffffff',
+        cardBg: 'rgba(30, 30, 50, 0.95)',
+        textSecondary: '#a0aec0',
+        borderColor: 'rgba(255, 255, 255, 0.15)'
+    };
+
+    // Premium Toast Style
+    const toastStyle = {
+        style: {
+            background: 'rgba(20, 20, 30, 0.95)',
+            color: '#fff',
+            border: '1px solid rgba(255, 107, 53, 0.5)',
+            fontFamily: "'Sen', sans-serif",
+            padding: '12px 20px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            borderRadius: '12px',
+        },
+        iconTheme: {
+            primary: '#ff6b35',
+            secondary: '#ffffff',
+        },
+    };
+
 
     useEffect(() => {
         const fetchPuzzle = async () => {
@@ -88,6 +128,141 @@ function PlaySlidingPuzzle() {
 
         if (id) fetchPuzzle();
     }, [id]);
+
+    // Disable browser zoom on this page
+    useEffect(() => {
+        // Set viewport meta to disable zoom
+        const viewportMeta = document.querySelector('meta[name="viewport"]');
+        const originalContent = viewportMeta?.getAttribute('content');
+        if (viewportMeta) {
+            viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+        }
+
+        // Prevent Ctrl + scroll zoom
+        const handleWheel = (e: WheelEvent) => {
+            if (e.ctrlKey) {
+                e.preventDefault();
+            }
+        };
+
+        // Prevent Ctrl + +/- zoom
+        const handleKeydown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+                e.preventDefault();
+            }
+        };
+
+        document.addEventListener('wheel', handleWheel, { passive: false });
+        document.addEventListener('keydown', handleKeydown);
+
+        // Cleanup - restore original viewport on unmount
+        return () => {
+            document.removeEventListener('wheel', handleWheel);
+            document.removeEventListener('keydown', handleKeydown);
+            if (viewportMeta && originalContent) {
+                viewportMeta.setAttribute('content', originalContent);
+            }
+        };
+    }, []);
+
+    // Load persisted win state
+    useEffect(() => {
+        const savedWon = localStorage.getItem('puzzle_won');
+        if (savedWon === 'true') {
+            setIsFinished(true);
+            setGameResult('won');
+            setMoves(parseInt(localStorage.getItem('puzzle_moves') || '0'));
+            setTime(parseInt(localStorage.getItem('puzzle_time') || '0'));
+            setIsStarted(true);
+            setIsLoadingGame(false);
+        }
+    }, []);
+
+    // Start Screen Audio (Hello)
+    useEffect(() => {
+        if (!isStarted && !loading) {
+            const audio = new Audio(helloSfx);
+            audio.volume = 0.7;
+            audio.playbackRate = 0.45; // Extremely slow and deep (Monster-like)
+            audio.muted = isMuted;
+            audio.play().catch(console.error);
+
+            return () => {
+                audio.pause();
+                audio.currentTime = 0;
+            };
+        }
+    }, [isStarted, loading]); // Note: mute toggle won't stop playing audio immediately here unless effect re-runs, usually fine for short clip
+
+    // Countdown effect
+    useEffect(() => {
+        let audio: HTMLAudioElement | null = null;
+        const timers: ReturnType<typeof setTimeout>[] = [];
+
+        if (isLoadingGame) {
+            // Play countdown sound
+            audio = new Audio(countdownSfx);
+            audio.volume = 0.8;
+            audio.muted = isMuted;
+            audio.play().catch(err => console.error("Audio play failed:", err));
+
+            // Removed explicit stop timer, let cleanup handle it or play until finish if needed
+
+            setCountdown('3');
+
+            timers.push(setTimeout(() => setCountdown('2'), 1000));
+            timers.push(setTimeout(() => setCountdown('1'), 2000));
+            timers.push(setTimeout(() => setCountdown('GO!'), 3000));
+
+            return () => {
+                timers.forEach(clearTimeout);
+                if (audio) {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }
+            };
+        }
+    }, [isLoadingGame]);
+
+    // BGM Logic
+    const bgmRef = useRef<HTMLAudioElement | null>(null);
+
+    // Initialize and Cleanup BGM
+    useEffect(() => {
+        bgmRef.current = new Audio(gameSfx);
+        bgmRef.current.loop = true;
+        bgmRef.current.volume = 0.5;
+
+        return () => {
+            if (bgmRef.current) {
+                bgmRef.current.pause();
+                bgmRef.current = null;
+            }
+        };
+    }, []);
+
+    // Control BGM Playback
+    useEffect(() => {
+        const bgm = bgmRef.current;
+        if (!bgm) return;
+
+        bgm.muted = isMuted;
+
+        // Ensure volume is set (sometimes resets)
+        bgm.volume = 0.5;
+
+        if (isStarted && !isLoadingGame && !isFinished && !isPaused) {
+            // Check if already playing to avoid interruption/error?
+            // Audio.play() restarts if paused.
+            if (bgm.paused) {
+                bgm.play().catch(e => console.error("BGM play failed:", e));
+            }
+        } else {
+            if (!bgm.paused) {
+                bgm.pause();
+            }
+        }
+    }, [isStarted, isLoadingGame, isFinished, isPaused, isMuted]);
 
     // Initialize tiles
     useEffect(() => {
@@ -112,7 +287,7 @@ function PlaySlidingPuzzle() {
                 if (puzzle?.time_limit && prev >= puzzle.time_limit) {
                     setIsFinished(true);
                     setGameResult('lost');
-                    toast.error("Time's up!");
+                    toast.error("Time's up!", toastStyle);
                     return prev;
                 }
                 return prev + 1;
@@ -125,46 +300,68 @@ function PlaySlidingPuzzle() {
     const shuffleTiles = useCallback(() => {
         if (!puzzle) return;
 
-        const gridSize = puzzle.grid_size;
-        const totalTiles = gridSize * gridSize;
-        let shuffled = Array.from({ length: totalTiles }, (_, i) => i);
+        // Clear persistence
+        localStorage.removeItem('puzzle_won');
+        localStorage.removeItem('puzzle_moves');
+        localStorage.removeItem('puzzle_time');
 
-        // Fisher-Yates shuffle
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-
-        // Ensure puzzle is solvable
-        if (!isSolvable(shuffled, gridSize)) {
-            // Swap first two non-empty tiles
-            if (shuffled[0] !== totalTiles - 1 && shuffled[1] !== totalTiles - 1) {
-                [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
-            } else {
-                [shuffled[2], shuffled[3]] = [shuffled[3], shuffled[2]];
-            }
-        }
-
-        const newTiles: Tile[] = shuffled.map((id, position) => ({
-            id,
-            position,
-            isEmpty: id === totalTiles - 1,
-        }));
-
-        setTiles(newTiles);
-        setMoves(0);
-        setTime(0);
+        // Show loading animation
+        setIsLoadingGame(true);
         setIsFinished(false);
         setGameResult(null);
-        setIsStarted(true);
-        setIsPaused(false);
-        setShowHint(false);
-        setHintMoves([]);
-        setHintProgress(null);
-        setUserHintsLeft(getInitialHints(gridSize, puzzle.max_hint_percent ?? 30)); // Reset hints dynamically
-        setIsAnimatingWin(false);
-        setAnimatedTiles(new Set());
+
+        // Wait 3.5 seconds for countdown animation, then start the game
+        setTimeout(() => {
+            const gridSize = puzzle.grid_size;
+            const totalTiles = gridSize * gridSize;
+            let shuffled = Array.from({ length: totalTiles }, (_, i) => i);
+
+            // Fisher-Yates shuffle
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            // Ensure puzzle is solvable
+            if (!isSolvable(shuffled, gridSize)) {
+                // Swap first two non-empty tiles
+                if (shuffled[0] !== totalTiles - 1 && shuffled[1] !== totalTiles - 1) {
+                    [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+                } else {
+                    [shuffled[2], shuffled[3]] = [shuffled[3], shuffled[2]];
+                }
+            }
+
+            const newTiles: Tile[] = shuffled.map((id, position) => ({
+                id,
+                position,
+                isEmpty: id === totalTiles - 1,
+            }));
+
+            setTiles(newTiles);
+            setMoves(0);
+            setTime(0);
+            setIsStarted(true);
+            setIsPaused(false);
+            setShowHint(false);
+            setShowPreview(true); // Auto-show preview side by side
+            setHintMoves([]);
+            setHintProgress(null);
+            setUserHintsLeft(getInitialHints(gridSize, puzzle.max_hint_percent ?? 30));
+            setIsAnimatingWin(false);
+            setIsLoadingGame(false); // End loading
+        }, 5000); // 3s countdown + 2s hold on GO
     }, [puzzle]);
+
+    // Win Audio Effect
+    useEffect(() => {
+        if (gameResult === 'won') {
+            const audio = new Audio(winSfx);
+            audio.volume = 0.8;
+            audio.play().catch(console.error);
+        }
+    }, [gameResult]);
+
 
     const isSolvable = (arr: number[], gridSize: number) => {
         let inversions = 0;
@@ -251,27 +448,17 @@ function PlaySlidingPuzzle() {
                 addPlayCount(id!);
 
                 // Animate tiles one by one
-                if (puzzle) {
-                    const gridSize = puzzle.grid_size;
-                    const totalTiles = gridSize * gridSize;
-                    let currentTile = 0;
-
-                    const animateInterval = setInterval(() => {
-                        if (currentTile < totalTiles - 1) { // -1 to exclude empty tile
-                            setAnimatedTiles(prev => new Set([...prev, currentTile]));
-                            currentTile++;
-                        } else {
-                            clearInterval(animateInterval);
-                            // Show win screen after animation completes
-                            setTimeout(() => {
-                                setIsFinished(true);
-                                setGameResult('won');
-                                setIsAnimatingWin(false);
-                                toast.success("Congratulations! You solved the puzzle!");
-                            }, 300);
-                        }
-                    }, 100); // 100ms delay between each tile animation
-                }
+                // Animate tiles one by one
+                // Show win screen directly without tile animation
+                setTimeout(() => {
+                    setIsFinished(true);
+                    setGameResult('won');
+                    localStorage.setItem('puzzle_won', 'true');
+                    localStorage.setItem('puzzle_moves', moves.toString());
+                    localStorage.setItem('puzzle_time', time.toString());
+                    setIsAnimatingWin(false);
+                    toast.success("Congratulations! You solved the puzzle!", toastStyle);
+                }, 500);
             }
         }
     };
@@ -289,7 +476,7 @@ function PlaySlidingPuzzle() {
         workerRef.current = new Worker(new URL('../../workers/puzzleSolver.worker.ts', import.meta.url), { type: 'module' });
 
         workerRef.current.onmessage = (e) => {
-            const { success, found, path, error } = e.data;
+            const { success, found, path } = e.data;
             if (success) {
                 // If path found, store it
                 // Only store if we haven't manipulated tiles since sending (simple check not strictly needed if we assume linear flow)
@@ -334,7 +521,7 @@ function PlaySlidingPuzzle() {
     const calculateHint = () => {
         if (!puzzle || !isStarted || isFinished || isPaused) return;
         if (userHintsLeft <= 0) {
-            toast.error("No hints left!");
+            toast.error("No hints left!", toastStyle);
             return;
         }
 
@@ -343,7 +530,7 @@ function PlaySlidingPuzzle() {
             applyHint(cachedHint.path, cachedHint.found);
         } else {
             // Fallback if worker hasn't finished yet (rare if pre-calc is working)
-            toast.loading("Thinking...", { duration: 1000 });
+            toast.loading("Thinking...", { ...toastStyle, duration: 2000 });
             // We just wait for the effect to update cachedHint?
             // Or we can set a flag "waitingForHint" which triggers applyHint when cachedHint arrives.
             setIsCalculatingHint(true);
@@ -357,21 +544,21 @@ function PlaySlidingPuzzle() {
             if (cachedHint.path.length > 0) {
                 applyHint(cachedHint.path, cachedHint.found);
             } else {
-                toast.error("Could not find a valid move.");
+                toast.error("Could not find a valid move.", toastStyle);
             }
         }
     }, [cachedHint, isCalculatingHint]);
 
     const applyHint = (path: any[], found: boolean) => {
-        const gridSize = puzzle!.grid_size;  // Safe assertion here
+
 
         // Determine how many steps to show
-        let stepsToShow = 1;
-        if (found) {
-            if (gridSize === 4) stepsToShow = Math.min(2, path.length);
-            else if (gridSize === 5) stepsToShow = Math.min(3, path.length);
-            else if (gridSize >= 6) stepsToShow = Math.min(4, path.length);
-        }
+        const stepsToShow = 1;
+        // if (found) {
+        //     if (gridSize === 4) stepsToShow = Math.min(2, path.length);
+        //     else if (gridSize === 5) stepsToShow = Math.min(3, path.length);
+        //     else if (gridSize >= 6) stepsToShow = Math.min(4, path.length);
+        // }
 
         const selectedMoves = path.slice(0, stepsToShow);
         setHintMoves(selectedMoves);
@@ -381,9 +568,9 @@ function PlaySlidingPuzzle() {
         setUserHintsLeft(prev => prev - 1);
 
         if (found) {
-            toast.success(`Solution: ${path.length} steps to solve!`);
+            toast.success(`Solution: ${path.length} steps to solve!`, toastStyle);
         } else {
-            toast("Best next move calculated", { icon: "💡" });
+            toast("Best next move calculated", { icon: "💡", ...toastStyle });
         }
 
         const timeout = found ? 8000 : 5000;
@@ -413,6 +600,9 @@ function PlaySlidingPuzzle() {
         if (isStarted && !isFinished) {
             await addPlayCount(id!);
         }
+        localStorage.removeItem('puzzle_won');
+        localStorage.removeItem('puzzle_moves');
+        localStorage.removeItem('puzzle_time');
         navigate("/");
     };
 
@@ -435,312 +625,1267 @@ function PlaySlidingPuzzle() {
 
     const gridSize = puzzle.grid_size;
     const tileSize = Math.min(500 / gridSize, 120);
+    const containerWidth = gridSize * tileSize;
+    const containerHeight = gridSize * tileSize;
 
-    if (isFinished && gameResult) {
-        return (
-            <div className="w-full bg-slate-50 min-h-screen flex flex-col relative">
-                {/* Background Game Area (Blurred) */}
-                <div className="absolute inset-0 filter blur-sm pointer-events-none z-0">
-                    {/* Re-render the game header and board as background */}
-                    <div className="w-full h-fit flex justify-between items-center px-8 py-4 shadow-sm bg-white">
-                        <div className="flex gap-4">
-                            <Typography variant="p" className="font-semibold">Moves: {moves}</Typography>
-                            <Typography variant="p" className="font-semibold">Time: {formatTime(time)}</Typography>
+
+
+    // Main Game Screen
+    return (
+        <div
+            className="puzzle-container font-['Sen']"
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '100vh',
+                padding: '20px',
+                width: '100%',
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: styles.background,
+                color: styles.color,
+                overflow: 'hidden'
+            }}
+        >
+            <style>
+                {`
+                    @import url('https://fonts.googleapis.com/css2?family=Sen:wght@400;700;800&display=swap');
+                    
+                    .font-sen { font-family: 'Sen', sans-serif; }
+
+                    /* Disable zoom */
+                    .puzzle-container {
+                        touch-action: pan-x pan-y;
+                        -webkit-user-select: none;
+                        -moz-user-select: none;
+                        -ms-user-select: none;
+                        user-select: none;
+                    }
+
+                    @keyframes pulse {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0.7; }
+                    }
+
+                    @keyframes gradientShift {
+                        0% { background-position: 0% 50%; }
+                        50% { background-position: 100% 50%; }
+                        100% { background-position: 0% 50%; }
+                    }
+
+                    @keyframes spin {
+                        from { transform: rotate(0deg); }
+                        to { transform: rotate(360deg); }
+                    }
+
+                    @keyframes phoenixFloat {
+                        0%, 100% { 
+                            transform: translateY(0px); 
+                        }
+                        50% { 
+                            transform: translateY(-10px); 
+                        }
+                    }
+
+                    @keyframes dragonFloat {
+                        0%, 100% { 
+                            transform: translateY(0px) scaleX(-1); 
+                        }
+                        50% { 
+                            transform: translateY(-15px) scaleX(-1); 
+                        }
+                    }
+
+                    @keyframes phoenixGlow {
+                        0%, 100% { 
+                            filter: drop-shadow(0 0 20px rgba(255, 107, 53, 0.4));
+                        }
+                        50% { 
+                            filter: drop-shadow(0 0 35px rgba(255, 140, 0, 0.6));
+                        }
+                    }
+
+                    /* Game Card */
+                    .game-card {
+                        background: rgba(10, 10, 18, 0.98);
+                        backdrop-filter: blur(20px);
+                        border-radius: 20px;
+                        border: 2px solid rgba(255, 107, 53, 0.5);
+                        box-shadow: 0 15px 50px rgba(0,0,0,0.6), 
+                                    0 0 40px rgba(255, 107, 53, 0.3),
+                                    0 0 80px rgba(255, 69, 0, 0.2),
+                                    inset 0 0 30px rgba(255, 107, 53, 0.05);
+                    }
+
+                    /* Fixed sizes using vw - zoom independent */
+                    .start-title {
+                        font-size: clamp(2rem, 5vw, 7rem) !important;
+                    }
+                    .start-subtitle {
+                        font-size: clamp(0.5rem, 0.8vw, 1rem) !important;
+                    }
+
+                    /* Premium Game Buttons */
+                    .game-btn {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        padding: 0.8rem 1.5rem;
+                        background: rgba(30, 30, 40, 0.6);
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        color: white;
+                        border-radius: 12px;
+                        font-family: 'Sen', sans-serif;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                        backdrop-filter: blur(10px);
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    }
+                    .game-btn:hover:not(:disabled) {
+                        background: rgba(40, 40, 50, 0.8);
+                        transform: translateY(-2px);
+                        box-shadow: 0 6px 15px rgba(0,0,0,0.2), 0 0 15px rgba(255, 107, 53, 0.2);
+                        border-color: rgba(255, 107, 53, 0.4);
+                        color: #ff6b35;
+                    }
+                        transform: translateY(0);
+                    }
+
+                    .game-btn-orange {
+                        background: rgba(255, 107, 53, 0.15) !important;
+                        border-color: rgba(255, 107, 53, 0.3) !important;
+                        color: #ffaa80 !important;
+                    }
+                    .game-btn-orange:hover:not(:disabled) {
+                        background: rgba(255, 107, 53, 0.25) !important;
+                        box-shadow: 0 0 20px rgba(255, 107, 53, 0.3) !important;
+                        border-color: rgba(255, 107, 53, 0.8) !important;
+                        color: #fff !important;
+                    }
+
+                    .game-btn-blue {
+                        background: rgba(0, 150, 255, 0.8) !important;
+                        border-color: rgba(0, 150, 255, 0.9) !important;
+                        color: #ffffff !important;
+                        box-shadow: 0 4px 10px rgba(0, 150, 255, 0.3) !important;
+                    }
+                    .game-btn-blue:hover:not(:disabled) {
+                        background: rgba(0, 150, 255, 1) !important;
+                        box-shadow: 0 0 25px rgba(0, 150, 255, 0.6) !important;
+                        border-color: #fff !important;
+                        transform: translateY(-2px);
+                    }
+
+                    .game-btn-outline {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        padding: 0.8rem 1.5rem;
+                        background: transparent;
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                        color: rgba(255, 255, 255, 0.7);
+                        border-radius: 12px;
+                        font-family: 'Sen', sans-serif;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                    }
+                    .game-btn-outline:hover {
+                        border-color: rgba(255, 255, 255, 0.5);
+                        color: white;
+                        background: rgba(255, 255, 255, 0.05);
+                    }
+
+                    .game-btn-outline-blue {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        padding: 0.8rem 1.5rem;
+                        background: rgba(0, 150, 255, 0.1);
+                        border: 2px solid #0096ff;
+                        color: #0096ff;
+                        border-radius: 12px;
+                        font-family: 'Sen', sans-serif;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        box-shadow: 0 0 10px rgba(0, 150, 255, 0.1);
+                    }
+                    .game-btn-outline-blue:hover {
+                        border-color: #4db8ff;
+                        color: white;
+                        background: rgba(0, 150, 255, 0.8);
+                        box-shadow: 0 0 20px rgba(0, 150, 255, 0.4);
+                    }
+
+                    .label-badge {
+                        display: inline-block;
+                        padding: 0.4rem 1.2rem;
+                        background: rgba(255, 107, 53, 0.15);
+                        border: 1px solid rgba(255, 107, 53, 0.3);
+                        border-radius: 50px;
+                        color: #ff6b35;
+                        font-size: 0.8rem;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                        margin-bottom: 0.5rem;
+                        box-shadow: 0 0 15px rgba(255, 107, 53, 0.1);
+                    }
+                    .label-badge-blue {
+                        background: #0096ff !important;
+                        border: 1px solid #00c3ff !important;
+                        color: #ffffff !important;
+                        box-shadow: 0 0 15px rgba(0, 150, 255, 0.4) !important;
+                        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+                    }
+                    .start-card {
+                        max-width: clamp(300px, 45vw, 850px) !important;
+                    }
+                    .start-card-image {
+                        width: clamp(120px, 12vw, 220px) !important;
+                        height: clamp(120px, 12vw, 220px) !important;
+                        min-width: clamp(120px, 12vw, 220px) !important;
+                    }
+                    .phoenix-img {
+                        width: clamp(400px, 42vw, 800px) !important;
+                    }
+                    .start-container {
+                        padding-left: clamp(1rem, 8vw, 12%) !important;
+                    }
+
+                    /* Responsive - Extra large screens (100% zoom on large monitors) */
+                    @media (min-width: 1800px) {
+                        .start-title { font-size: 9rem !important; }
+                        .start-card { max-width: 950px !important; }
+                        .phoenix-img { width: 900px !important; right: 8% !important; }
+                    }
+
+                    /* Responsive - Large screens (100% zoom) */
+                    @media (max-width: 1799px) and (min-width: 1600px) {
+                        .start-title { font-size: 8rem !important; }
+                        .start-card { max-width: 900px !important; }
+                        .phoenix-img { width: 850px !important; right: 6% !important; }
+                    }
+
+                    /* Responsive - 90% zoom */
+                    @media (max-width: 1599px) and (min-width: 1400px) {
+                        .start-title { font-size: 6.5rem !important; }
+                        .start-card { max-width: 800px !important; }
+                        .phoenix-img { width: 750px !important; right: 6% !important; }
+                    }
+
+                    /* Responsive - 80% zoom */
+                    @media (max-width: 1399px) and (min-width: 1200px) {
+                        .start-title { font-size: 5.5rem !important; }
+                        .start-card { max-width: 700px !important; }
+                        .start-card-image { width: 180px !important; height: 180px !important; min-width: 180px !important; }
+                        .phoenix-img { width: 650px !important; right: 5% !important; top: -8% !important; }
+                    }
+
+                    /* Responsive - smaller screens / laptops */
+                    @media (max-width: 1199px) and (min-width: 993px) {
+                        .start-title { font-size: 4.5rem !important; }
+                        .start-subtitle { font-size: 0.8rem !important; }
+                        .start-card { max-width: 600px !important; padding: 1.5rem !important; gap: 1.5rem !important; }
+                        .start-card-image { width: 160px !important; height: 160px !important; min-width: 160px !important; }
+                        .phoenix-img { width: 500px !important; right: 3% !important; top: -5% !important; }
+                        .start-container { padding-left: 8% !important; }
+                    }
+
+                    /* Responsive - tablet landscape */
+                    @media (max-width: 992px) and (min-width: 769px) {
+                        .puzzle-container { overflow-y: auto !important; }
+                        .start-title { font-size: 3.8rem !important; }
+                        .start-subtitle { font-size: 0.75rem !important; }
+                        .start-card { 
+                            max-width: 90% !important; 
+                            flex-direction: column !important; 
+                            padding: 1.5rem !important;
+                            align-items: center !important;
+                        }
+                        .start-card-left { align-items: center !important; }
+                        .start-card-image { width: 180px !important; height: 180px !important; }
+                        .start-card-info { align-items: center !important; text-align: center !important; }
+                        .phoenix-img { display: none !important; }
+                        .start-container { 
+                            width: 100% !important; 
+                            padding-left: 5% !important; 
+                            padding-right: 5% !important;
+                            position: relative !important;
+                            height: auto !important;
+                            min-height: 100vh !important;
+                        }
+                    }
+
+                    /* Responsive - tablet portrait / large mobile */
+                    @media (max-width: 768px) and (min-width: 481px) {
+                        .puzzle-container { overflow-y: auto !important; }
+                        .start-title { font-size: 3rem !important; letter-spacing: 0.1em !important; }
+                        .start-subtitle { font-size: 0.7rem !important; letter-spacing: 0.3em !important; }
+                        .start-card { 
+                            max-width: 95% !important; 
+                            padding: 1.25rem !important; 
+                            gap: 1.25rem !important; 
+                            flex-direction: column !important;
+                            align-items: center !important;
+                        }
+                        .start-card-left { align-items: center !important; }
+                        .start-card-image { width: 150px !important; height: 150px !important; min-width: 150px !important; }
+                        .start-card-info { align-items: center !important; text-align: center !important; }
+                        .start-container { 
+                            width: 100% !important; 
+                            padding: 1rem !important;
+                            position: relative !important;
+                            height: auto !important;
+                            min-height: 100vh !important;
+                        }
+                        .phoenix-img { display: none !important; }
+                        .start-card h2 { font-size: 1.5rem !important; }
+                        .start-card p { font-size: 0.9rem !important; }
+                        .how-to-play { padding: 0.75rem !important; }
+                        .how-to-play p { font-size: 0.8rem !important; }
+                    }
+
+                    /* Responsive - mobile */
+                    @media (max-width: 480px) {
+                        .puzzle-container { overflow-y: auto !important; }
+                        .start-title { font-size: 2.5rem !important; letter-spacing: 0.08em !important; }
+                        .start-subtitle { font-size: 0.6rem !important; letter-spacing: 0.2em !important; margin-top: 0.75rem !important; }
+                        .start-card { 
+                            max-width: 100% !important;
+                            padding: 1rem !important; 
+                            gap: 1rem !important;
+                            border-radius: 16px !important;
+                            flex-direction: column !important;
+                            align-items: center !important;
+                            margin: 0 0.5rem !important;
+                        }
+                        .start-card-left { align-items: center !important; }
+                        .start-card-image { width: 130px !important; height: 130px !important; min-width: 130px !important; border-radius: 12px !important; }
+                        .start-card-info { align-items: center !important; text-align: center !important; }
+                        .start-container { 
+                            width: 100% !important; 
+                            padding: 0.75rem !important;
+                            gap: 1rem !important;
+                            position: relative !important;
+                            height: auto !important;
+                            min-height: 100vh !important;
+                        }
+                        .phoenix-img { display: none !important; }
+                        .start-card h2 { font-size: 1.3rem !important; }
+                        .start-card p { font-size: 0.8rem !important; }
+                        .stats-row { gap: 0.5rem !important; justify-content: center !important; }
+                        .stats-row span { padding: 0.4rem 0.75rem !important; font-size: 0.75rem !important; }
+                        .difficulty-badge { font-size: 0.7rem !important; padding: 0.4rem 0.9rem !important; }
+                        .how-to-play { padding: 0.75rem !important; display: none !important; }
+                        .action-buttons { flex-direction: column !important; width: 100% !important; }
+                        .action-buttons button { width: 100% !important; }
+                    }
+
+                    /* Responsive - very small mobile */
+                    @media (max-width: 360px) {
+                        .start-title { font-size: 2rem !important; }
+                        .start-subtitle { font-size: 0.5rem !important; }
+                        .start-card-image { width: 110px !important; height: 110px !important; min-width: 110px !important; }
+                        .start-card h2 { font-size: 1.1rem !important; }
+                        .stats-row span { padding: 0.35rem 0.6rem !important; font-size: 0.7rem !important; }
+                    }
+
+                    /* Puzzle Grid Wrapper */
+                    .puzzle-grid-wrapper {
+                        position: relative;
+                        border-radius: 12px;
+                        overflow: hidden;
+                        box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+                    }
+
+                    /* Stats Display */
+                    .stats-pill {
+                        background: rgba(255, 107, 53, 0.1);
+                        border: 1px solid rgba(255, 107, 53, 0.3);
+                        backdrop-filter: blur(10px);
+                    }
+
+                    /* Label Badge */
+                    .label-badge {
+                        background: #ff6b35;
+                        color: white;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                        padding: 0.5rem 1.5rem;
+                        border-radius: 8px;
+                        font-size: 0.85rem;
+                    }
+
+                    /* Game Buttons */
+                    .game-btn {
+                        background: #ff6b35;
+                        color: white !important;
+                        font-weight: 600;
+                        padding: 0.7rem 1.2rem;
+                        border-radius: 8px;
+                        border: none;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        font-size: 0.9rem;
+                        font-family: 'Sen', sans-serif;
+                    }
+
+                    .game-btn:hover {
+                        background: #e55a2b;
+                        transform: translateY(-1px);
+                    }
+
+                    .game-btn-outline {
+                        background: transparent;
+                        color: #ff6b35 !important;
+                        border: 2px solid #ff6b35;
+                        font-weight: 600;
+                        padding: 0.7rem 1.2rem;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        font-size: 0.9rem;
+                        font-family: 'Sen', sans-serif;
+                    }
+
+                    .game-btn-outline:hover {
+                        background: rgba(255, 107, 53, 0.1);
+                    }
+
+                    .game-btn-large {
+                        padding: 1rem 2.5rem;
+                        font-size: 1.1rem;
+                        border-radius: 10px;
+                    }
+
+                    /* Title Styling */
+                    .game-title {
+                        font-size: 2.2rem;
+                        font-weight: 800;
+                        color: #ff6b35;
+                        text-align: center;
+                        margin-bottom: 0.5rem;
+                    }
+
+                    /* Loading Animation */
+                    .loading-spinner {
+                        border: 4px solid rgba(255, 107, 53, 0.2);
+                        border-top-color: #ff6b35;
+                        border-radius: 50%;
+                        animation: spin 1s linear infinite;
+                    }
+
+                    .loading-text {
+                        color: #ff6b35;
+                        font-weight: 600;
+                        font-size: 1.2rem;
+                    }
+
+                    @keyframes gradientText {
+                        0% { background-position: 0% 50%; }
+                        50% { background-position: 100% 50%; }
+                        100% { background-position: 0% 50%; }
+                    }
+
+                    .text-gradient-animated {
+                        background: linear-gradient(-45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
+                        background-size: 400% 400%;
+                        animation: gradientText 5s ease infinite;
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+                    }
+                `}
+            </style>
+
+            {/* LOADING SCREEN */}
+            {isLoadingGame && (
+                <div className="font-sen" style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: styles.background,
+                    zIndex: 100,
+                    gap: '2.5rem',
+                    overflow: 'hidden'
+                }}>
+                    {/* Red Dragon - Top Left */}
+                    <img
+                        src={redDragonImg}
+                        alt="Red Dragon"
+                        style={{
+                            position: 'absolute',
+                            top: '-40%',
+                            left: '0%',
+                            width: '1000px',
+                            height: 'auto',
+                            transform: 'rotate(40deg) scaleX(-1)',
+                            opacity: 1,
+                            filter: 'drop-shadow(0 0 50px rgba(255, 50, 0, 0.8)) contrast(1.25) brightness(1.1) saturate(1.4)',
+                            pointerEvents: 'none'
+                        }}
+                    />
+
+                    {/* Blue Dragon - Bottom Right */}
+                    <img
+                        src={blueDragonImg}
+                        alt="Blue Dragon"
+                        style={{
+                            position: 'absolute',
+                            bottom: '-50%',
+                            right: '6%',
+                            width: '1000px',
+                            height: 'auto',
+                            transform: 'rotate(20deg)',
+                            opacity: 1,
+                            filter: 'drop-shadow(0 0 50px rgba(0, 150, 255, 0.9)) contrast(1.4) brightness(1.2) saturate(1.6)',
+                            pointerEvents: 'none'
+                        }}
+                    />
+
+
+                    <div style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
+                        {/* Glow effect behind loading image */}
+                        <div style={{
+                            position: 'absolute',
+                            width: '400px',
+                            height: '400px',
+                            borderRadius: '50%',
+                            background: 'radial-gradient(circle, rgba(255, 107, 53, 0.3) 0%, rgba(0, 150, 255, 0.2) 50%, transparent 70%)',
+                            filter: 'blur(30px)',
+                            animation: 'pulse 2s ease-in-out infinite'
+                        }} />
+                        <img
+                            src={loadingImg}
+                            alt="Loading"
+                            style={{
+                                width: '450px',
+                                height: '450px',
+                                animation: 'spin 1.5s linear infinite',
+                                filter: 'drop-shadow(0 0 30px rgba(255, 107, 53, 0.6)) drop-shadow(0 0 60px rgba(0, 150, 255, 0.4)) contrast(1.2) brightness(1.1) saturate(1.3)',
+                                position: 'relative',
+                                zIndex: 1
+                            }}
+                        />
+                        {/* Text inside the spinner */}
+                        <div style={{
+                            position: 'absolute',
+                            zIndex: 2,
+                            textAlign: 'center'
+                        }}>
+                            <h2 style={{
+                                margin: 0,
+                                fontSize: '6rem',
+                                fontWeight: 800,
+                                fontFamily: "'Sen', sans-serif",
+                                background: 'linear-gradient(90deg, #ff6b35, #ffa500, #0096ff, #ff6b35)',
+                                backgroundSize: '300% 100%',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text',
+                                animation: 'gradientShift 2s ease-in-out infinite',
+                                filter: 'drop-shadow(0 0 15px rgba(0, 0, 0, 0.8))',
+                                lineHeight: 1
+                            }}>
+                                <span key={countdown} style={{ display: 'inline-block', animation: 'pulse 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+                                    {countdown}
+                                </span>
+                            </h2>
                         </div>
                     </div>
-                    <div className="w-full h-full p-8 flex justify-center items-center">
-                        <div className="max-w-4xl w-full space-y-6">
-                            <Typography variant="h3" className="text-center">{puzzle.name}</Typography>
-                            <div className="flex justify-center">
-                                <div
-                                    className="relative bg-gray-800 rounded-lg shadow-2xl opacity-50 overflow-hidden"
+                </div>
+            )}
+            {/* Phoenix Logo - Fixed position, only on Start Screen */}
+            {!isStarted && !isLoadingGame && (
+                <img
+                    src={phoenixImg}
+                    alt="Phoenix Logo"
+                    className="phoenix-img"
+                    style={{
+                        position: 'fixed',
+                        top: '-12%',
+                        right: '7%',
+                        width: '760px',
+                        height: 'auto',
+                        zIndex: 9999,
+                        pointerEvents: 'none',
+                        opacity: 0.9,
+                        animation: 'phoenixFloat 6s ease-in-out infinite, phoenixGlow 4s ease-in-out infinite'
+                    }}
+                />
+            )}
+
+            {/* START SCREEN - Title + Card on Left 60% */}
+            {!isStarted && !isLoadingGame && (
+                <div
+                    className="start-container"
+                    style={{
+                        position: 'fixed',
+                        left: 0,
+                        top: 0,
+                        width: '60%',
+                        height: '100vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '1.5rem',
+                        zIndex: 10,
+                        padding: '2rem',
+                        paddingLeft: '12%'
+                    }}
+                >
+                    {/* Game Title - Vertical */}
+                    <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                        <span
+                            className="start-title"
+                            style={{
+                                display: 'block',
+                                fontSize: '7rem',
+                                fontWeight: 900,
+                                fontFamily: "'Sen', sans-serif",
+                                letterSpacing: '0.15em',
+                                color: '#ff6b35',
+                                lineHeight: 0.9,
+                                textShadow: '0 0 40px rgba(255, 107, 53, 0.8), 0 0 80px rgba(255, 69, 0, 0.4)'
+                            }}
+                        >
+                            SLIDING
+                        </span>
+                        <span
+                            className="start-title"
+                            style={{
+                                display: 'block',
+                                fontSize: '7rem',
+                                fontWeight: 900,
+                                fontFamily: "'Sen', sans-serif",
+                                letterSpacing: '0.15em',
+                                color: '#ffa500',
+                                lineHeight: 0.9,
+                                textShadow: '0 0 40px rgba(255, 165, 0, 0.8), 0 0 80px rgba(255, 215, 0, 0.4)'
+                            }}
+                        >
+                            PUZZLE
+                        </span>
+                        <p
+                            className="start-subtitle"
+                            style={{
+                                fontSize: '1rem',
+                                color: 'rgba(255, 165, 0, 0.5)',
+                                fontFamily: "'Sen', sans-serif",
+                                letterSpacing: '0.5em',
+                                margin: 0,
+                                marginTop: '1.5rem',
+                                textAlign: 'center'
+                            }}
+                        >
+                            CHALLENGE YOUR MIND
+                        </p>
+                    </div>
+
+                    {/* Game Card - Premium Design - Extra Wide */}
+                    <div className="start-card" style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'stretch',
+                        gap: '2.5rem',
+                        padding: '2rem',
+                        width: '100%',
+                        maxWidth: '850px',
+                        background: 'rgba(0, 0, 0, 0.6)',
+                        backdropFilter: 'blur(20px)',
+                        borderRadius: '24px',
+                        border: '1px solid rgba(255, 107, 53, 0.3)',
+                        boxShadow: '0 25px 50px rgba(0,0,0,0.5)'
+                    }}>
+                        {/* Left side - Puzzle Image */}
+                        <div className="start-card-left" style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '1rem'
+                        }}>
+                            <div className="start-card-image" style={{
+                                width: '220px',
+                                height: '220px',
+                                minWidth: '220px',
+                                borderRadius: '20px',
+                                overflow: 'hidden',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.4), 0 0 0 3px rgba(255, 107, 53, 0.3)'
+                            }}>
+                                <img
+                                    src={`${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image}`}
+                                    alt="Puzzle Preview"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                            </div>
+                            {/* Difficulty Badge */}
+                            <div className="difficulty-badge" style={{
+                                padding: '0.5rem 1.25rem',
+                                background: gridSize <= 3 ? 'rgba(34, 197, 94, 0.2)' : gridSize <= 4 ? 'rgba(251, 191, 36, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                border: `1px solid ${gridSize <= 3 ? 'rgba(34, 197, 94, 0.4)' : gridSize <= 4 ? 'rgba(251, 191, 36, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+                                borderRadius: '50px',
+                                color: gridSize <= 3 ? '#22c55e' : gridSize <= 4 ? '#fbbf24' : '#ef4444',
+                                fontSize: '0.85rem',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.1em'
+                            }}>
+                                {gridSize <= 3 ? '⭐ Easy' : gridSize <= 4 ? '⭐⭐ Medium' : '⭐⭐⭐ Hard'}
+                            </div>
+                        </div>
+
+                        {/* Middle - Info */}
+                        <div className="start-card-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {/* Title & Description */}
+                            <div>
+                                <h2 style={{
+                                    fontSize: '2rem',
+                                    fontWeight: 800,
+                                    fontFamily: "'Sen', sans-serif",
+                                    color: '#fff',
+                                    margin: '0 0 0.5rem 0'
+                                }}>{puzzle.name}</h2>
+
+                                {puzzle.description && (
+                                    <p style={{
+                                        color: 'rgba(255, 255, 255, 0.5)',
+                                        fontSize: '0.95rem',
+                                        lineHeight: 1.5,
+                                        margin: 0
+                                    }}>
+                                        {puzzle.description}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Stats Row */}
+                            <div className="stats-row" style={{
+                                display: 'flex',
+                                gap: '0.75rem',
+                                flexWrap: 'wrap'
+                            }}>
+                                <span style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.5rem 1rem',
+                                    background: 'rgba(255, 107, 53, 0.15)',
+                                    border: '1px solid rgba(255, 107, 53, 0.3)',
+                                    borderRadius: '50px',
+                                    color: '#ff8c5a',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 600
+                                }}>
+                                    <LayoutGrid size={16} fill="currentColor" /> {gridSize}x{gridSize} Grid
+                                </span>
+                                <span style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.5rem 1rem',
+                                    background: 'rgba(255, 165, 0, 0.15)',
+                                    border: '1px solid rgba(255, 165, 0, 0.3)',
+                                    borderRadius: '50px',
+                                    color: '#ffa500',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 600
+                                }}>
+                                    <Timer size={16} fill="currentColor" /> {puzzle.time_limit ?? 300}s
+                                </span>
+                                <span style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.5rem 1rem',
+                                    background: 'rgba(147, 51, 234, 0.15)',
+                                    border: '1px solid rgba(147, 51, 234, 0.3)',
+                                    borderRadius: '50px',
+                                    color: '#a78bfa',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 600
+                                }}>
+                                    <Shapes size={16} fill="currentColor" /> {(gridSize * gridSize) - 1} Pieces
+                                </span>
+                            </div>
+
+                            {/* How to Play */}
+                            <div className="how-to-play" style={{
+                                padding: '1rem',
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                borderRadius: '12px',
+                                border: '1px solid rgba(255, 255, 255, 0.08)'
+                            }}>
+                                <p style={{
+                                    color: 'rgba(255, 255, 255, 0.4)',
+                                    fontSize: '0.85rem',
+                                    margin: 0,
+                                    lineHeight: 1.6
+                                }}>
+                                    💡 <strong style={{ color: 'rgba(255, 255, 255, 0.6)' }}>How to play:</strong> Click tiles adjacent to the empty space to move them. Arrange all tiles in order to complete the puzzle!
+                                </p>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="action-buttons" style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto' }}>
+                                <button
+                                    onClick={shuffleTiles}
                                     style={{
-                                        width: `${gridSize * Math.min(500 / gridSize, 120)}px`,
-                                        height: `${gridSize * Math.min(500 / gridSize, 120)}px`,
+                                        flex: 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.6rem',
+                                        padding: '1rem 1.5rem',
+                                        fontSize: '1.1rem',
+                                        fontWeight: 700,
+                                        fontFamily: "'Sen', sans-serif",
+                                        background: 'linear-gradient(135deg, #ff6b35 0%, #ff8c00 100%)',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '14px',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 8px 25px rgba(255, 107, 53, 0.35)',
+                                        transition: 'all 0.2s ease'
                                     }}
                                 >
-                                    {/* Simply show the full image if won, or current tiles if lost */}
-                                    {gameResult === 'won' ? (
-                                        <div
-                                            className="w-full h-full bg-cover bg-center rounded"
-                                            style={{ backgroundImage: `url(${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image})` }}
-                                        />
-                                    ) : (
-                                        tiles.map((tile) => {
-                                            // Simplified rendering for background
-                                            const row = Math.floor(tile.position / gridSize);
-                                            const col = tile.position % gridSize;
-                                            const sourceRow = Math.floor(tile.id / gridSize);
-                                            const sourceCol = tile.id % gridSize;
-                                            const size = Math.min(500 / gridSize, 120);
-                                            return (
-                                                <div
-                                                    key={tile.id}
-                                                    className="absolute"
-                                                    style={{
-                                                        width: `${size}px`,
-                                                        height: `${size}px`,
-                                                        left: `${col * size}px`,
-                                                        top: `${row * size}px`,
-                                                        backgroundImage: tile.isEmpty ? "none" : `url(${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image})`,
-                                                        backgroundSize: `${gridSize * size}px ${gridSize * size}px`,
-                                                        backgroundPosition: `-${sourceCol * size}px -${sourceRow * size}px`,
-                                                    }}
-                                                />
-                                            )
-                                        })
-                                    )}
-                                </div>
+                                    <Play size={20} /> Start Game
+                                </button>
+                                <button
+                                    onClick={handleExit}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.5rem',
+                                        padding: '1rem 1.5rem',
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        color: 'rgba(255, 255, 255, 0.7)',
+                                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                                        borderRadius: '14px',
+                                        cursor: 'pointer',
+                                        fontSize: '1rem',
+                                        fontWeight: 600,
+                                        fontFamily: "'Sen', sans-serif",
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    <ArrowLeft size={18} /> Back
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
+            )}
 
-                {/* Overlay Modal */}
-                <div className="absolute inset-0 z-10 flex justify-center items-center bg-black/40">
-                    <div className="bg-white rounded-xl p-10 mx-10 text-center max-w-sm w-full space-y-4 shadow-2xl transform transition-all scale-100">
-                        {gameResult === 'won' ? (
-                            <>
-                                <Trophy className="mx-auto text-yellow-400 animate-bounce" size={72} />
-                                <Typography variant="h4" className="text-green-600 font-bold">Puzzle Solved!</Typography>
-                                <Typography variant="h2">{moves} Moves</Typography>
-                                <Typography variant="p">Time: {formatTime(time)}</Typography>
+            {/* GAME SCREEN (after game starts) */}
+            {isStarted && !isLoadingGame && (
+                <div className="font-sen" style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '1.5rem',
+                    zIndex: 4,
+                    width: '100%',
+                    maxWidth: '1200px'
+                }}>
+                    {/* Game Screen Horses */}
+                    {/* Fire Horse - Left */}
+                    <div style={{
+                        position: 'fixed',
+                        top: '0%',
+                        left: '-10%',
+                        width: '900px',
+                        height: 'auto',
+                        animation: 'phoenixFloat 5s ease-in-out infinite',
+                        pointerEvents: 'none',
+                        zIndex: 10
+                    }}>
+                        <img
+                            src={fireHorseImg}
+                            alt="Fire Horse Game"
+                            style={{
+                                width: '100%',
+                                height: 'auto',
+                                transform: 'rotate(15deg)',
+                                opacity: 1,
+                                filter: 'drop-shadow(0 0 60px rgba(255, 50, 0, 0.6)) contrast(1.3) brightness(1.15) saturate(1.5)'
+                            }}
+                        />
+                    </div>
 
-                                <div className="flex justify-center gap-1 text-yellow-400 text-xl">
-                                    {Array.from({ length: 5 }).map((_, i) => (
-                                        <span key={i}>★</span>
-                                    ))}
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="mx-auto text-red-500 bg-red-100 p-4 rounded-full w-24 h-24 flex items-center justify-center mb-4">
-                                    <span className="text-4xl font-bold">:(</span>
-                                </div>
-                                <Typography variant="h4" className="text-red-500 font-bold">Time's Up!</Typography>
-                                <Typography variant="p" className="text-gray-600">Don't give up, try again!</Typography>
-                            </>
-                        )}
+                    {/* Blue Horse - Right */}
+                    <div style={{
+                        position: 'fixed',
+                        top: '15%',
+                        right: '-8%',
+                        width: '800px',
+                        height: 'auto',
+                        animation: 'phoenixFloat 5s ease-in-out infinite 1s',
+                        pointerEvents: 'none',
+                        zIndex: 10
+                    }}>
+                        <img
+                            src={blueHorseImg}
+                            alt="Blue Horse Game"
+                            style={{
+                                width: '100%',
+                                height: 'auto',
+                                transform: 'scaleX(-1)', // Flip to face left
+                                opacity: 1,
+                                filter: 'drop-shadow(0 0 60px rgba(0, 150, 255, 0.6)) contrast(1.5) brightness(1.25) saturate(1.8)'
+                            }}
+                        />
+                    </div>
 
-                        <div className="pt-4 space-y-2">
-                            <Button
-                                className="w-full text-lg py-6"
-                                onClick={shuffleTiles}
-                            >
-                                {gameResult === 'won' ? 'Play Again' : 'Try Again'}
-                            </Button>
-
-                            <Button
-                                variant="outline"
-                                className="w-full"
-                                onClick={handleExit}
-                            >
-                                Exit
-                            </Button>
+                    {/* Stats Row */}
+                    <div className="stats-pill" style={{
+                        display: 'flex',
+                        gap: '3rem',
+                        justifyContent: 'center',
+                        padding: '1rem 3rem',
+                        borderRadius: '16px',
+                        fontSize: '2rem',
+                        fontWeight: 600,
+                        fontFamily: "'Sen', sans-serif",
+                        lineHeight: 1,
+                        background: 'rgba(30, 30, 40, 0.6)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+                    }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <span style={{ display: 'block', fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', color: '#a0aec0', letterSpacing: '2px', marginBottom: '0.2rem' }}>Moves</span>
+                            <span style={{
+                                fontWeight: 800,
+                                fontSize: '2.5rem',
+                                fontFamily: "'Sen', sans-serif",
+                                background: 'linear-gradient(135deg, #ff6b35 0%, #ff8c00 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                filter: 'drop-shadow(0 0 10px rgba(255, 107, 53, 0.4))'
+                            }}>{moves}</span>
+                        </div>
+                        <div style={{ width: '1px', height: '60px', background: 'linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.2), transparent)' }} />
+                        <div style={{ textAlign: 'center' }}>
+                            <span style={{ display: 'block', fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', color: '#a0aec0', letterSpacing: '2px', marginBottom: '0.2rem' }}>Time</span>
+                            <span style={{
+                                fontWeight: 800,
+                                fontSize: '2.5rem',
+                                fontFamily: "'Sen', sans-serif",
+                                background: 'linear-gradient(135deg, #0096ff 0%, #00c6ff 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                filter: 'drop-shadow(0 0 10px rgba(0, 150, 255, 0.4))'
+                            }}>{formatTime(time)}</span>
                         </div>
                     </div>
-                </div>
-            </div>
-        );
-    }
 
-    return (
-        <div className="w-full bg-slate-50 min-h-screen flex flex-col">
-            {/* Header */}
-            <div className="bg-white h-fit w-full flex justify-between items-center px-8 py-4 shadow-sm">
-                <div>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="hidden md:flex"
-                        onClick={handleExit}
-                    >
-                        <ArrowLeft /> Exit Game
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="block md:hidden"
-                        onClick={handleExit}
-                    >
-                        <ArrowLeft />
-                    </Button>
-                </div>
+                    {/* Puzzle and Preview Side by Side */}
+                    <div style={{
+                        display: 'flex',
+                        gap: '2.5rem',
+                        justifyContent: 'center',
+                        alignItems: 'flex-start',
+                        flexWrap: 'wrap'
+                    }}>
+                        {/* Puzzle Grid */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                            <span className="label-badge">Puzzle</span>
+                            <div
+                                className="puzzle-grid-wrapper"
+                                style={{
+                                    position: 'relative',
+                                    width: `${containerWidth}px`,
+                                    height: `${containerHeight}px`,
+                                    boxShadow: '0 0 60px rgba(255, 107, 53, 0.25), inset 0 0 20px rgba(255, 107, 53, 0.1)',
+                                    borderRadius: '16px',
+                                    overflow: 'hidden',
+                                    border: '3px solid rgba(255, 107, 53, 0.8)',
+                                    backgroundColor: 'rgba(30, 30, 40, 0.9)',
+                                    backdropFilter: 'blur(10px)',
+                                    filter: isPaused ? 'blur(5px)' : 'drop-shadow(0 0 15px rgba(255, 107, 53, 0.4))'
+                                }}
+                            >
+                                {tiles.map((tile) => {
+                                    const row = Math.floor(tile.position / gridSize);
+                                    const col = tile.position % gridSize;
+                                    const sourceRow = Math.floor(tile.id / gridSize);
+                                    const sourceCol = tile.id % gridSize;
+                                    const hintIndex = showHint ? hintMoves.findIndex(h => h.tileId === tile.id) : -1;
+                                    const hint = hintIndex >= 0 ? hintMoves[hintIndex] : null;
 
-                <div className="flex items-center gap-4">
-                    <Typography variant="p" className="font-semibold">
-                        Moves: {moves}
-                    </Typography>
-                    <Typography variant="p" className="font-semibold">
-                        Time: {formatTime(time)}
-                    </Typography>
-                    {puzzle.time_limit && (
-                        <Typography variant="p" className="text-sm text-gray-500">
-                            / {formatTime(puzzle.time_limit)}
-                        </Typography>
-                    )}
-                </div>
-            </div>
+                                    return (
+                                        <div
+                                            key={tile.id}
+                                            style={{
+                                                position: 'absolute',
+                                                width: `${tileSize}px`,
+                                                height: `${tileSize}px`,
+                                                left: `${col * tileSize}px`,
+                                                top: `${row * tileSize}px`,
+                                                backgroundImage: tile.isEmpty ? 'none' : `url(${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image})`,
+                                                backgroundSize: `${gridSize * tileSize}px ${gridSize * tileSize}px`,
+                                                backgroundPosition: `-${sourceCol * tileSize}px -${sourceRow * tileSize}px`,
+                                                cursor: tile.isEmpty ? 'default' : 'pointer',
+                                                opacity: tile.isEmpty ? 0 : 1,
+                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                border: tile.isEmpty ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '8px',
+                                                boxShadow: tile.isEmpty ? 'none' : '0 4px 6px rgba(0,0,0,0.3)',
+                                                transform: 'scale(0.98)'
+                                            }}
+                                            onClick={() => !tile.isEmpty && !isAnimatingWin && moveTile(tile)}
+                                        >
+                                            {hint && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    inset: 0,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    backgroundColor: 'rgba(234, 179, 8, 0.9)'
+                                                }}>
+                                                    {hint.direction === 'up' && <ArrowUp color="white" size={tileSize / 2} />}
+                                                    {hint.direction === 'down' && <ArrowDown color="white" size={tileSize / 2} />}
+                                                    {hint.direction === 'left' && <ArrowLeftIcon color="white" size={tileSize / 2} />}
+                                                    {hint.direction === 'right' && <ArrowRight color="white" size={tileSize / 2} />}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
 
-            {/* Game Area */}
-            <div className="w-full h-full p-8 flex justify-center items-center">
-                <div className="max-w-4xl w-full space-y-6">
-                    <div className="text-center space-y-2">
-                        <Typography variant="h3">{puzzle.name}</Typography>
-                        {puzzle.description && (
-                            <Typography variant="p" className="text-gray-600">
-                                {puzzle.description}
-                            </Typography>
+                                {/* Paused Overlay */}
+                                {isPaused && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        inset: 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        backgroundColor: 'rgba(0,0,0,0.5)',
+                                        zIndex: 10
+                                    }}>
+                                        <div style={{
+                                            backgroundColor: 'white',
+                                            padding: '1.5rem',
+                                            borderRadius: '50%',
+                                            boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+                                        }}>
+                                            <Play size={40} color="#ff6b35" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Preview - Same Size as Puzzle */}
+                        {showPreview && (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                                <span className="label-badge label-badge-blue">Preview</span>
+                                <div className="puzzle-grid-wrapper" style={{
+                                    width: `${containerWidth}px`,
+                                    height: `${containerHeight}px`,
+
+                                    boxShadow: '0 0 60px rgba(0, 150, 255, 0.25), inset 0 0 20px rgba(0, 150, 255, 0.1)',
+                                    borderRadius: '16px',
+                                    overflow: 'hidden',
+                                    border: '3px solid rgba(0, 150, 255, 0.8)',
+                                    backgroundColor: 'rgba(30, 30, 40, 0.9)',
+                                    backdropFilter: 'blur(10px)',
+                                    filter: 'drop-shadow(0 0 15px rgba(0, 150, 255, 0.4))'
+                                }}>
+                                    <img
+                                        src={`${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image}`}
+                                        alt="Preview"
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                </div>
+                            </div>
                         )}
                     </div>
 
                     {/* Controls */}
-                    <div className="flex justify-center gap-2 flex-wrap">
-                        {!isStarted && (
-                            <Button onClick={shuffleTiles}>
-                                Start Game
-                            </Button>
-                        )}
-                        {isStarted && !isFinished && (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setIsPaused(!isPaused)}
-                                >
-                                    {isPaused ? <Play size={16} /> : <Pause size={16} />}
-                                    {isPaused ? "Resume" : "Pause"}
-                                </Button>
-                                <Button variant="outline" onClick={shuffleTiles}>
-                                    <RotateCcw size={16} /> Restart
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setShowPreview(!showPreview)}
-                                >
-                                    {showPreview ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    {showPreview ? "Hide" : "Preview"}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={calculateHint}
-                                    disabled={userHintsLeft <= 0 || showHint || isCalculatingHint}
-                                    className={`relative transition-all ${showHint ? "bg-yellow-100 border-yellow-400 text-yellow-700" : ""} ${userHintsLeft <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                                >
-                                    {isCalculatingHint ? (
-                                        <>
-                                            <Loader2 size={16} className="animate-spin mr-2" /> Calculating...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Lightbulb size={16} className={showHint ? "fill-yellow-500" : ""} />
-                                            {hintProgress
-                                                ? `Showing ${hintProgress.current + 1}/${hintProgress.total}`
-                                                : `Hint`
-                                            }
-                                        </>
-                                    )}
-                                </Button>
-                            </>
-                        )}
+                    <div style={{
+                        display: 'flex',
+                        gap: '0.75rem',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center',
+                        marginTop: '1rem'
+                    }}>
+                        <button className="game-btn game-btn-orange" onClick={() => setIsPaused(!isPaused)}>
+                            {isPaused ? <Play size={18} /> : <Pause size={18} />}
+                            {isPaused ? "Resume" : "Pause"}
+                        </button>
+                        <button className="game-btn game-btn-orange" onClick={shuffleTiles}>
+                            <RotateCcw size={16} /> Restart
+                        </button>
+                        <button className="game-btn game-btn-blue" onClick={() => setShowPreview(!showPreview)}>
+                            {showPreview ? <EyeOff size={16} /> : <Eye size={16} />}
+                            {showPreview ? "Hide" : "Show"}
+                        </button>
+                        <button className="game-btn game-btn-blue" onClick={() => setIsMuted(!isMuted)}>
+                            {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                            {isMuted ? "Unmute" : "Mute"}
+                        </button>
+                        <button
+                            className="game-btn game-btn-blue"
+                            onClick={calculateHint}
+                            disabled={userHintsLeft <= 0 || showHint || isCalculatingHint}
+                            style={{ opacity: (userHintsLeft <= 0 || showHint || isCalculatingHint) ? 0.5 : 1 }}
+                        >
+                            {isCalculatingHint ? <Loader2 className="animate-spin" size={18} /> : <Lightbulb size={18} />}
+                            Hint ({userHintsLeft})
+                        </button>
+                        <button className="game-btn-outline-blue" onClick={handleExit}>
+                            <ArrowLeft size={18} /> Exit
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* WIN OVERLAY - Premium Design */}
+            {gameResult === 'won' && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 9999,
+                    background: 'rgba(5, 5, 10, 0.95)',
+                    backdropFilter: 'blur(20px)',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: "'Sen', sans-serif",
+                    gap: '0',
+                    padding: '2rem'
+                }}>
+                    {/* Left Side: Image */}
+                    <div style={{
+                        animation: 'phoenixFloat 6s ease-in-out infinite',
+                        flex: '0 0 auto',
+                        zIndex: 50,
+                        position: 'relative',
+                        marginRight: '-150px'
+                    }}>
+                        <img
+                            src={leftTigerImg}
+                            alt="Left Tiger"
+                            style={{
+                                width: '740px',
+                                maxWidth: '45vw',
+                                height: 'auto',
+                                objectFit: 'contain',
+                                filter: 'drop-shadow(0 0 50px rgba(255, 107, 53, 0.4)) contrast(1.25) saturate(1.3) brightness(1.1)',
+                                pointerEvents: 'none'
+                            }}
+                        />
                     </div>
 
-                    {/* Preview Image */}
-                    {showPreview && (
-                        <div className="flex justify-center">
-                            <div className="relative rounded-lg shadow-lg border-4 border-white overflow-hidden"
-                                style={{
-                                    width: `${gridSize * tileSize}px`,
-                                    height: `${gridSize * tileSize}px`,
-                                }}
-                            >
-                                <img
-                                    src={`${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image}`}
-                                    alt="Preview"
-                                    className="w-full h-full object-fill"
-                                />
+                    {/* Right Side: Content Card */}
+                    <div style={{
+                        position: 'relative',
+                        zIndex: 40,
+                        display: 'flex',
+                        background: 'rgba(30, 30, 40, 0.85)', // Glass Card
+                        backdropFilter: 'blur(16px)',
+                        padding: '3rem 4rem 3rem 8rem', // Extra padding left
+                        borderRadius: '30px',
+                        border: '1px solid rgba(255, 107, 53, 0.3)',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '2rem',
+                    }}>
+                        <Trophy size={80} color="#ffd700" style={{ filter: 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.6))' }} />
+
+                        <div style={{ textAlign: 'center' }}>
+                            <h1 style={{
+                                fontSize: '5rem',
+                                fontWeight: 900,
+                                background: 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                margin: 0,
+                                lineHeight: 1.1,
+                                filter: 'drop-shadow(0 0 30px rgba(255, 140, 0, 0.4))'
+                            }}>
+                                PUZZLE SOLVED!
+                            </h1>
+                            <p style={{
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                fontSize: '1.2rem',
+                                letterSpacing: '0.2em',
+                                marginTop: '0.5rem'
+                            }}>
+                                MAGNIFICENT VICTORY
+                            </p>
+                        </div>
+
+                        {/* Stats */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '2rem',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            padding: '1.5rem 3rem',
+                            borderRadius: '20px',
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                            <div style={{ textAlign: 'center' }}>
+                                <span style={{ display: 'block', fontSize: '0.9rem', color: '#a0aec0', textTransform: 'uppercase' }}>Time</span>
+                                <span style={{ fontSize: '2rem', fontWeight: 700, color: '#0096ff' }}>{formatTime(time)}</span>
+                            </div>
+                            <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                            <div style={{ textAlign: 'center' }}>
+                                <span style={{ display: 'block', fontSize: '0.9rem', color: '#a0aec0', textTransform: 'uppercase' }}>Moves</span>
+                                <span style={{ fontSize: '2rem', fontWeight: 700, color: '#ff6b35' }}>{moves}</span>
                             </div>
                         </div>
-                    )}
 
-                    {/* Puzzle Grid */}
-                    <div className="flex justify-center">
-                        <div
-                            className="relative bg-gray-800 rounded-lg shadow-2xl overflow-hidden"
-                            style={{
-                                width: `${gridSize * tileSize}px`,
-                                height: `${gridSize * tileSize}px`,
-                            }}
-                        >
-                            {tiles.map((tile) => {
-                                const row = Math.floor(tile.position / gridSize);
-                                const col = tile.position % gridSize;
-                                const sourceRow = Math.floor(tile.id / gridSize);
-                                const sourceCol = tile.id % gridSize;
-
-                                // Check if this tile has a hint
-                                const hintIndex = showHint ? hintMoves.findIndex(h => h.tileId === tile.id) : -1;
-                                const hint = hintIndex >= 0 ? hintMoves[hintIndex] : null;
-
-                                // Check if this tile should be animated (win animation)
-                                const isAnimated = isAnimatingWin && animatedTiles.has(tile.id);
-
-                                return (
-                                    <div
-                                        key={tile.id}
-                                        className={`absolute transition-all ${isAnimated ? "duration-300 scale-105" : "duration-200"
-                                            } ${tile.isEmpty
-                                                ? "opacity-0"
-                                                : "cursor-pointer hover:brightness-110"
-                                            } ${isPaused ? "blur-sm" : ""}`}
-                                        style={{
-                                            width: `${tileSize}px`,
-                                            height: `${tileSize}px`,
-                                            left: `${col * tileSize}px`,
-                                            top: `${row * tileSize}px`,
-                                            backgroundImage: tile.isEmpty
-                                                ? "none"
-                                                : `url(${import.meta.env.VITE_API_URL}/${puzzle.puzzle_image})`,
-                                            backgroundSize: `${gridSize * tileSize}px ${gridSize * tileSize}px`,
-                                            backgroundPosition: `-${sourceCol * tileSize}px -${sourceRow * tileSize}px`,
-                                            border: tile.isEmpty ? "none" : isAnimated ? "3px solid #22c55e" : "2px solid white",
-                                            borderRadius: "4px",
-                                            boxShadow: isAnimated ? "0 0 20px rgba(34, 197, 94, 0.8)" : "none",
-                                        }}
-                                        onClick={() => !tile.isEmpty && !isAnimatingWin && moveTile(tile)}
-                                    >
-                                        {/* Win Animation Overlay */}
-                                        {isAnimated && (
-                                            <div className="absolute inset-0 bg-green-500/20 rounded animate-pulse" />
-                                        )}
-
-                                        {/* Hint Arrow Overlay */}
-                                        {hint && !isAnimatingWin && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-yellow-400/60 rounded animate-pulse">
-                                                {/* Step Number Badge */}
-                                                <div className="absolute top-1 left-1 bg-white text-black font-bold rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg">
-                                                    {hintIndex + 1}
-                                                </div>
-                                                {hint.direction === "up" && <ArrowUp size={tileSize / 2} className="text-white drop-shadow-lg" strokeWidth={3} />}
-                                                {hint.direction === "down" && <ArrowDown size={tileSize / 2} className="text-white drop-shadow-lg" strokeWidth={3} />}
-                                                {hint.direction === "left" && <ArrowLeftIcon size={tileSize / 2} className="text-white drop-shadow-lg" strokeWidth={3} />}
-                                                {hint.direction === "right" && <ArrowRight size={tileSize / 2} className="text-white drop-shadow-lg" strokeWidth={3} />}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                            <button
+                                onClick={shuffleTiles}
+                                className="game-btn" // Reuse orange button
+                                style={{ fontSize: '1.2rem', padding: '1rem 2rem' }}
+                            >
+                                <RotateCcw size={20} /> Play Again
+                            </button>
+                            <button
+                                onClick={handleExit}
+                                className="game-btn-outline-blue" // Reuse blue outline
+                                style={{ fontSize: '1.2rem', padding: '1rem 2rem' }}
+                            >
+                                <ArrowLeft size={20} /> Exit Game
+                            </button>
                         </div>
                     </div>
-
-                    {isPaused && (
-                        <div className="text-center">
-                            <Typography variant="h4" className="text-gray-500">
-                                Game Paused
-                            </Typography>
-                        </div>
-                    )}
                 </div>
-            </div>
+            )}
         </div>
     );
 }
