@@ -1295,20 +1295,19 @@ function PlaySlidingPuzzle() {
                         </p>
                     </div>
 
-                    {/* Game Card - Premium Design - Extra Wide */}
                     <div className="start-card" style={{
                         display: 'flex',
                         flexDirection: 'row',
                         alignItems: 'stretch',
-                        gap: '2.5rem',
-                        padding: '2rem',
+                        gap: '3rem',
+                        padding: '2.5rem',
                         width: '100%',
-                        maxWidth: '850px',
-                        background: 'rgba(0, 0, 0, 0.6)',
-                        backdropFilter: 'blur(20px)',
-                        borderRadius: '24px',
+                        maxWidth: '900px',
+                        background: 'rgba(10, 10, 14, 0.75)',
+                        backdropFilter: 'blur(30px)',
+                        borderRadius: '32px',
                         border: '1px solid rgba(255, 107, 53, 0.3)',
-                        boxShadow: '0 25px 50px rgba(0,0,0,0.5)'
+                        boxShadow: '0 40px 80px -20px rgba(0,0,0,0.8), 0 0 0 1px rgba(255, 107, 53, 0.2)'
                     }}>
                         {/* Left side - Puzzle Image */}
                         <div className="start-card-left" style={{
@@ -1348,23 +1347,27 @@ function PlaySlidingPuzzle() {
                         </div>
 
                         {/* Middle - Info */}
-                        <div className="start-card-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div className="start-card-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                             {/* Title & Description */}
                             <div>
                                 <h2 style={{
-                                    fontSize: '2rem',
-                                    fontWeight: 800,
+                                    fontSize: '3rem',
+                                    fontWeight: 900,
                                     fontFamily: "'Sen', sans-serif",
-                                    color: '#fff',
-                                    margin: '0 0 0.5rem 0'
+                                    margin: '0 0 0.5rem 0',
+                                    background: 'linear-gradient(90deg, #ffffff 0%, #a0aec0 100%)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.2))'
                                 }}>{puzzle.name}</h2>
 
                                 {puzzle.description && (
                                     <p style={{
-                                        color: 'rgba(255, 255, 255, 0.5)',
-                                        fontSize: '0.95rem',
-                                        lineHeight: 1.5,
-                                        margin: 0
+                                        color: '#a0aec0',
+                                        fontSize: '1rem',
+                                        lineHeight: 1.6,
+                                        margin: 0,
+                                        fontWeight: 500
                                     }}>
                                         {puzzle.description}
                                     </p>
@@ -1374,115 +1377,156 @@ function PlaySlidingPuzzle() {
                             {/* Stats Row */}
                             <div className="stats-row" style={{
                                 display: 'flex',
-                                gap: '0.75rem',
+                                gap: '1rem',
                                 flexWrap: 'wrap'
                             }}>
                                 <span style={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.5rem',
-                                    padding: '0.5rem 1rem',
+                                    gap: '0.6rem',
+                                    padding: '0.6rem 1.25rem',
                                     background: 'rgba(255, 107, 53, 0.15)',
-                                    border: '1px solid rgba(255, 107, 53, 0.3)',
-                                    borderRadius: '50px',
+                                    border: '1px solid rgba(255, 107, 53, 0.4)',
+                                    borderRadius: '12px',
                                     color: '#ff8c5a',
-                                    fontSize: '0.9rem',
-                                    fontWeight: 600
+                                    fontSize: '0.95rem',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.5px'
                                 }}>
-                                    <LayoutGrid size={16} fill="currentColor" /> {gridSize}x{gridSize} Grid
+                                    <LayoutGrid size={18} strokeWidth={2.5} /> {gridSize}x{gridSize}
                                 </span>
                                 <span style={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.5rem',
-                                    padding: '0.5rem 1rem',
-                                    background: 'rgba(255, 165, 0, 0.15)',
-                                    border: '1px solid rgba(255, 165, 0, 0.3)',
-                                    borderRadius: '50px',
-                                    color: '#ffa500',
-                                    fontSize: '0.9rem',
-                                    fontWeight: 600
+                                    gap: '0.6rem',
+                                    padding: '0.6rem 1.25rem',
+                                    background: 'rgba(251, 191, 36, 0.15)',
+                                    border: '1px solid rgba(251, 191, 36, 0.4)',
+                                    borderRadius: '12px',
+                                    color: '#fbbf24',
+                                    fontSize: '0.95rem',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.5px'
                                 }}>
-                                    <Timer size={16} fill="currentColor" /> {puzzle.time_limit ?? 300}s
+                                    <Timer size={18} strokeWidth={2.5} /> {puzzle.time_limit ?? 300}s
                                 </span>
                                 <span style={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.5rem',
-                                    padding: '0.5rem 1rem',
-                                    background: 'rgba(147, 51, 234, 0.15)',
-                                    border: '1px solid rgba(147, 51, 234, 0.3)',
-                                    borderRadius: '50px',
+                                    gap: '0.6rem',
+                                    padding: '0.6rem 1.25rem',
+                                    background: 'rgba(167, 139, 250, 0.15)',
+                                    border: '1px solid rgba(167, 139, 250, 0.4)',
+                                    borderRadius: '12px',
                                     color: '#a78bfa',
-                                    fontSize: '0.9rem',
-                                    fontWeight: 600
+                                    fontSize: '0.95rem',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.5px'
                                 }}>
-                                    <Shapes size={16} fill="currentColor" /> {(gridSize * gridSize) - 1} Pieces
+                                    <Shapes size={18} strokeWidth={2.5} /> {(gridSize * gridSize) - 1} Pieces
                                 </span>
                             </div>
 
                             {/* How to Play */}
                             <div className="how-to-play" style={{
-                                padding: '1rem',
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                borderRadius: '12px',
-                                border: '1px solid rgba(255, 255, 255, 0.08)'
+                                padding: '1.25rem',
+                                background: 'linear-gradient(to right, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02))',
+                                borderRadius: '16px',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                display: 'flex',
+                                gap: '1rem',
+                                alignItems: 'flex-start'
                             }}>
-                                <p style={{
-                                    color: 'rgba(255, 255, 255, 0.4)',
-                                    fontSize: '0.85rem',
-                                    margin: 0,
-                                    lineHeight: 1.6
+                                <div style={{
+                                    background: 'rgba(255, 215, 0, 0.2)',
+                                    padding: '0.5rem',
+                                    borderRadius: '10px',
+                                    color: '#ffd700',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
                                 }}>
-                                    💡 <strong style={{ color: 'rgba(255, 255, 255, 0.6)' }}>How to play:</strong> Click tiles adjacent to the empty space to move them. Arrange all tiles in order to complete the puzzle!
-                                </p>
+                                    <Lightbulb size={24} strokeWidth={2} />
+                                </div>
+                                <div>
+                                    <h4 style={{ margin: '0 0 0.25rem 0', color: '#fff', fontSize: '1rem', fontWeight: 700 }}>How to Play</h4>
+                                    <p style={{
+                                        color: '#a0aec0',
+                                        fontSize: '0.9rem',
+                                        margin: 0,
+                                        lineHeight: 1.5
+                                    }}>
+                                        Click adjacent tiles to move them into the empty space. Arrange the full image to win!
+                                    </p>
+                                </div>
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="action-buttons" style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto' }}>
+                            <div className="action-buttons" style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '0.5rem' }}>
                                 <button
                                     onClick={shuffleTiles}
+                                    style={{
+                                        flex: 2,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.8rem',
+                                        padding: '1.2rem 2rem',
+                                        fontSize: '1.2rem',
+                                        fontWeight: 800,
+                                        fontFamily: "'Sen', sans-serif",
+                                        background: 'linear-gradient(90deg, #ff6b35 0%, #ff4500 100%)',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '16px',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 10px 30px -5px rgba(255, 69, 0, 0.5), inset 0 1px 1px rgba(255,255,255,0.3)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '1px'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                                        e.currentTarget.style.boxShadow = '0 15px 40px -5px rgba(255, 69, 0, 0.6), inset 0 1px 1px rgba(255,255,255,0.3)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                                        e.currentTarget.style.boxShadow = '0 10px 30px -5px rgba(255, 69, 0, 0.5), inset 0 1px 1px rgba(255,255,255,0.3)';
+                                    }}
+                                >
+                                    <Play size={24} fill="white" /> START GAME
+                                </button>
+                                <button
+                                    onClick={handleExit}
                                     style={{
                                         flex: 1,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         gap: '0.6rem',
-                                        padding: '1rem 1.5rem',
-                                        fontSize: '1.1rem',
-                                        fontWeight: 700,
-                                        fontFamily: "'Sen', sans-serif",
-                                        background: 'linear-gradient(135deg, #ff6b35 0%, #ff8c00 100%)',
+                                        padding: '1.2rem 1.5rem',
+                                        background: 'rgba(255, 255, 255, 0.03)',
                                         color: '#fff',
-                                        border: 'none',
-                                        borderRadius: '14px',
-                                        cursor: 'pointer',
-                                        boxShadow: '0 8px 25px rgba(255, 107, 53, 0.35)',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                >
-                                    <Play size={20} /> Start Game
-                                </button>
-                                <button
-                                    onClick={handleExit}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '0.5rem',
-                                        padding: '1rem 1.5rem',
-                                        background: 'rgba(255, 255, 255, 0.05)',
-                                        color: 'rgba(255, 255, 255, 0.7)',
-                                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                                        borderRadius: '14px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '16px',
                                         cursor: 'pointer',
                                         fontSize: '1rem',
-                                        fontWeight: 600,
+                                        fontWeight: 700,
                                         fontFamily: "'Sen', sans-serif",
-                                        transition: 'all 0.2s ease'
+                                        transition: 'all 0.2s ease',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '1px'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                                     }}
                                 >
-                                    <ArrowLeft size={18} /> Back
+                                    <ArrowLeft size={20} /> BACK
                                 </button>
                             </div>
                         </div>
@@ -1800,76 +1844,141 @@ function PlaySlidingPuzzle() {
                         position: 'relative',
                         zIndex: 40,
                         display: 'flex',
-                        background: 'rgba(30, 30, 40, 0.85)', // Glass Card
-                        backdropFilter: 'blur(16px)',
-                        padding: '3rem 4rem 3rem 8rem', // Extra padding left
-                        borderRadius: '30px',
+                        background: 'rgba(10, 10, 14, 0.85)',
+                        backdropFilter: 'blur(30px)',
+                        padding: '3.5rem 5rem 3.5rem 9rem',
+                        borderRadius: '32px',
                         border: '1px solid rgba(255, 107, 53, 0.3)',
-                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+                        boxShadow: '0 40px 100px -20px rgba(0,0,0,0.8), 0 0 0 1px rgba(255, 107, 53, 0.15)',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: '2rem',
+                        gap: '2.5rem',
+                        minWidth: '600px'
                     }}>
-                        <Trophy size={80} color="#ffd700" style={{ filter: 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.6))' }} />
+                        <Trophy size={90} color="#ffd700" style={{ filter: 'drop-shadow(0 0 30px rgba(255, 215, 0, 0.4))' }} />
 
                         <div style={{ textAlign: 'center' }}>
                             <h1 style={{
-                                fontSize: '5rem',
+                                fontSize: '4.5rem',
                                 fontWeight: 900,
+                                margin: 0,
+                                lineHeight: 1,
                                 background: 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)',
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent',
-                                margin: 0,
-                                lineHeight: 1.1,
-                                filter: 'drop-shadow(0 0 30px rgba(255, 140, 0, 0.4))'
+                                filter: 'drop-shadow(0 0 25px rgba(255, 140, 0, 0.3))',
+                                textTransform: 'uppercase',
+                                letterSpacing: '2px'
                             }}>
-                                PUZZLE SOLVED!
+                                Puzzle Solved!
                             </h1>
                             <p style={{
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                fontSize: '1.2rem',
-                                letterSpacing: '0.2em',
-                                marginTop: '0.5rem'
+                                color: '#a0aec0',
+                                fontSize: '1.1rem',
+                                letterSpacing: '0.4em',
+                                marginTop: '1rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase'
                             }}>
-                                MAGNIFICENT VICTORY
+                                Magnificent Victory
                             </p>
                         </div>
 
                         {/* Stats */}
                         <div style={{
                             display: 'flex',
-                            gap: '2rem',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            padding: '1.5rem 3rem',
+                            gap: '0',
+                            background: 'rgba(255, 255, 255, 0.03)',
                             borderRadius: '20px',
                             border: '1px solid rgba(255, 255, 255, 0.1)'
                         }}>
-                            <div style={{ textAlign: 'center' }}>
-                                <span style={{ display: 'block', fontSize: '0.9rem', color: '#a0aec0', textTransform: 'uppercase' }}>Time</span>
-                                <span style={{ fontSize: '2rem', fontWeight: 700, color: '#0096ff' }}>{formatTime(time)}</span>
+                            <div style={{
+                                textAlign: 'center',
+                                padding: '1.5rem 3rem',
+                                borderRight: '1px solid rgba(255, 255, 255, 0.1)'
+                            }}>
+                                <span style={{ display: 'block', fontSize: '0.85rem', color: '#a0aec0', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.5rem' }}>Time</span>
+                                <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#0096ff', fontFamily: "'Sen', sans-serif" }}>{formatTime(time)}</span>
                             </div>
-                            <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                            <div style={{ textAlign: 'center' }}>
-                                <span style={{ display: 'block', fontSize: '0.9rem', color: '#a0aec0', textTransform: 'uppercase' }}>Moves</span>
-                                <span style={{ fontSize: '2rem', fontWeight: 700, color: '#ff6b35' }}>{moves}</span>
+                            <div style={{
+                                textAlign: 'center',
+                                padding: '1.5rem 3rem'
+                            }}>
+                                <span style={{ display: 'block', fontSize: '0.85rem', color: '#a0aec0', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.5rem' }}>Moves</span>
+                                <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#ff6b35', fontFamily: "'Sen', sans-serif" }}>{moves}</span>
                             </div>
                         </div>
 
                         {/* Actions */}
-                        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', width: '100%' }}>
                             <button
                                 onClick={shuffleTiles}
-                                className="game-btn" // Reuse orange button
-                                style={{ fontSize: '1.2rem', padding: '1rem 2rem' }}
+                                style={{
+                                    flex: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.8rem',
+                                    padding: '1.2rem 2rem',
+                                    fontSize: '1.2rem',
+                                    fontWeight: 800,
+                                    fontFamily: "'Sen', sans-serif",
+                                    background: 'linear-gradient(90deg, #ff6b35 0%, #ff4500 100%)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '16px',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 10px 30px -5px rgba(255, 69, 0, 0.5), inset 0 1px 1px rgba(255,255,255,0.3)',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                                    e.currentTarget.style.boxShadow = '0 15px 40px -5px rgba(255, 69, 0, 0.6), inset 0 1px 1px rgba(255,255,255,0.3)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                                    e.currentTarget.style.boxShadow = '0 10px 30px -5px rgba(255, 69, 0, 0.5), inset 0 1px 1px rgba(255,255,255,0.3)';
+                                }}
                             >
-                                <RotateCcw size={20} /> Play Again
+                                <RotateCcw size={22} strokeWidth={2.5} /> PLAY AGAIN
                             </button>
                             <button
                                 onClick={handleExit}
-                                className="game-btn-outline-blue" // Reuse blue outline
-                                style={{ fontSize: '1.2rem', padding: '1rem 2rem' }}
+                                style={{
+                                    flex: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.8rem',
+                                    padding: '1.2rem 2rem',
+                                    background: 'rgba(0, 150, 255, 0.1)',
+                                    color: '#0096ff',
+                                    border: '1px solid rgba(0, 150, 255, 0.3)',
+                                    borderRadius: '16px',
+                                    cursor: 'pointer',
+                                    fontSize: '1.1rem',
+                                    fontWeight: 700,
+                                    fontFamily: "'Sen', sans-serif",
+                                    transition: 'all 0.2s ease',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(0, 150, 255, 0.2)';
+                                    e.currentTarget.style.borderColor = 'rgba(0, 150, 255, 0.6)';
+                                    e.currentTarget.style.color = '#fff';
+                                    e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 150, 255, 0.3)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'rgba(0, 150, 255, 0.1)';
+                                    e.currentTarget.style.borderColor = 'rgba(0, 150, 255, 0.3)';
+                                    e.currentTarget.style.color = '#0096ff';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                }}
                             >
-                                <ArrowLeft size={20} /> Exit Game
+                                <ArrowLeft size={22} strokeWidth={2.5} /> EXIT GAME
                             </button>
                         </div>
                     </div>
