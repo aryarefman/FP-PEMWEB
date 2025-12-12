@@ -1,5 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
-import jwt, { TokenExpiredError } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
+
+const { TokenExpiredError } = jwt;
 
 import { ErrorResponse, type IJwtPayload, JwtConfig } from '../common';
 

@@ -464,7 +464,7 @@ function PlaySlidingPuzzle() {
 
     // Initialize Worker
     useEffect(() => {
-        workerRef.current = new Worker(new URL('../../workers/puzzleSolver.worker.ts', import.meta.url), { type: 'module' });
+        workerRef.current = new Worker(new URL('./puzzleSolver.worker.ts', import.meta.url), { type: 'module' });
 
         workerRef.current.onmessage = (e) => {
             const { success, found, path } = e.data;
@@ -1297,11 +1297,11 @@ function PlaySlidingPuzzle() {
 
                     <div className="start-card" style={{
                         display: 'flex',
-                        flexDirection: 'row',
-                        alignItems: 'stretch',
-                        gap: '3rem',
-                        padding: '2.5rem',
-                        width: '100%',
+                        flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+                        alignItems: 'center',
+                        gap: '2rem',
+                        padding: '2rem',
+                        width: '95%',
                         maxWidth: '900px',
                         background: 'rgba(10, 10, 14, 0.75)',
                         backdropFilter: 'blur(30px)',
@@ -1462,7 +1462,7 @@ function PlaySlidingPuzzle() {
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="action-buttons" style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '0.5rem' }}>
+                            <div className="action-buttons" style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '0.5rem', flexWrap: 'wrap' }}>
                                 <button
                                     onClick={shuffleTiles}
                                     style={{
@@ -1541,9 +1541,12 @@ function PlaySlidingPuzzle() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '1.5rem',
-                    zIndex: 4,
+                    zIndex: 20,
                     width: '100%',
-                    maxWidth: '1200px'
+                    maxWidth: '1200px',
+                    marginTop: '80px',
+                    padding: '0 1rem 2rem 1rem',
+                    position: 'relative' // Ensure z-index works
                 }}>
                     {/* Game Screen Horses */}
                     {/* Fire Horse - Left */}
@@ -1555,7 +1558,8 @@ function PlaySlidingPuzzle() {
                         height: 'auto',
                         animation: 'phoenixFloat 5s ease-in-out infinite',
                         pointerEvents: 'none',
-                        zIndex: 10
+                        zIndex: 0,
+                        display: window.innerWidth < 1280 ? 'none' : 'block'
                     }}>
                         <img
                             src={fireHorseImg}
@@ -1579,7 +1583,8 @@ function PlaySlidingPuzzle() {
                         height: 'auto',
                         animation: 'phoenixFloat 5s ease-in-out infinite 1s',
                         pointerEvents: 'none',
-                        zIndex: 10
+                        zIndex: 0,
+                        display: window.innerWidth < 1280 ? 'none' : 'block'
                     }}>
                         <img
                             src={blueHorseImg}
@@ -1608,7 +1613,12 @@ function PlaySlidingPuzzle() {
                         background: 'rgba(30, 30, 40, 0.6)',
                         border: '1px solid rgba(255, 255, 255, 0.1)',
                         backdropFilter: 'blur(10px)',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                        position: 'relative',
+                        zIndex: 30,
+                        width: '100%',
+                        maxWidth: '500px',
+                        flexWrap: 'wrap'
                     }}>
                         <div style={{ textAlign: 'center' }}>
                             <span style={{ display: 'block', fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', color: '#a0aec0', letterSpacing: '2px', marginBottom: '0.2rem' }}>Moves</span>
@@ -1810,27 +1820,28 @@ function PlaySlidingPuzzle() {
                     background: 'rgba(5, 5, 10, 0.95)',
                     backdropFilter: 'blur(20px)',
                     display: 'flex',
-                    flexDirection: 'row',
+                    flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontFamily: "'Sen', sans-serif",
-                    gap: '0',
-                    padding: '2rem'
+                    gap: '2rem',
+                    padding: '1rem',
+                    overflowY: 'auto'
                 }}>
-                    {/* Left Side: Image */}
+                    {/* Left Side: Image - Hidden on mobile if needed, or adjusted */}
                     <div style={{
                         animation: 'phoenixFloat 6s ease-in-out infinite',
                         flex: '0 0 auto',
                         zIndex: 50,
                         position: 'relative',
-                        marginRight: '-150px'
+                        marginBottom: '-50px'
                     }}>
                         <img
                             src={leftTigerImg}
                             alt="Left Tiger"
                             style={{
-                                width: '740px',
-                                maxWidth: '45vw',
+                                width: '100%',
+                                maxWidth: '300px',
                                 height: 'auto',
                                 objectFit: 'contain',
                                 filter: 'drop-shadow(0 0 50px rgba(255, 107, 53, 0.4)) contrast(1.25) saturate(1.3) brightness(1.1)',
@@ -1846,20 +1857,22 @@ function PlaySlidingPuzzle() {
                         display: 'flex',
                         background: 'rgba(10, 10, 14, 0.85)',
                         backdropFilter: 'blur(30px)',
-                        padding: '3.5rem 5rem 3.5rem 9rem',
+                        padding: '2.5rem',
                         borderRadius: '32px',
                         border: '1px solid rgba(255, 107, 53, 0.3)',
                         boxShadow: '0 40px 100px -20px rgba(0,0,0,0.8), 0 0 0 1px rgba(255, 107, 53, 0.15)',
                         flexDirection: 'column',
                         alignItems: 'center',
                         gap: '2.5rem',
-                        minWidth: '600px'
+                        minWidth: 'auto',
+                        width: '95%',
+                        maxWidth: '600px'
                     }}>
                         <Trophy size={90} color="#ffd700" style={{ filter: 'drop-shadow(0 0 30px rgba(255, 215, 0, 0.4))' }} />
 
                         <div style={{ textAlign: 'center' }}>
                             <h1 style={{
-                                fontSize: '4.5rem',
+                                fontSize: 'clamp(2.5rem, 5vw, 4.5rem)',
                                 fontWeight: 900,
                                 margin: 0,
                                 lineHeight: 1,
@@ -1890,7 +1903,9 @@ function PlaySlidingPuzzle() {
                             gap: '0',
                             background: 'rgba(255, 255, 255, 0.03)',
                             borderRadius: '20px',
-                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            width: '100%',
+                            justifyContent: 'space-around'
                         }}>
                             <div style={{
                                 textAlign: 'center',
@@ -1910,7 +1925,7 @@ function PlaySlidingPuzzle() {
                         </div>
 
                         {/* Actions */}
-                        <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', width: '100%' }}>
+                        <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', width: '100%', flexWrap: 'wrap' }}>
                             <button
                                 onClick={shuffleTiles}
                                 style={{
