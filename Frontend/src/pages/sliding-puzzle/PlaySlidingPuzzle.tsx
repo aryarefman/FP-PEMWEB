@@ -626,19 +626,15 @@ function PlaySlidingPuzzle() {
             style={{
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'center',
+                justifyContent: 'flex-start',
                 alignItems: 'center',
                 minHeight: '100vh',
                 padding: '20px',
                 width: '100%',
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
                 backgroundColor: styles.background,
                 color: styles.color,
-                overflow: 'hidden'
+                overflowX: 'hidden',
+                overflowY: 'auto'
             }}
         >
             <style>
@@ -987,6 +983,49 @@ function PlaySlidingPuzzle() {
                         .stats-row span { padding: 0.35rem 0.6rem !important; font-size: 0.7rem !important; }
                     }
 
+                    /* Game Screen Horses - Hide on smaller screens */
+                    .game-horse {
+                        pointer-events: none;
+                    }
+                    @media (max-width: 1200px) {
+                        .game-horse { opacity: 0.3 !important; }
+                    }
+                    @media (max-width: 992px) {
+                        .game-horse { display: none !important; }
+                    }
+
+                    /* Win Screen Responsive */
+                    .win-overlay {
+                        flex-direction: row;
+                    }
+                    .win-tiger {
+                        display: block;
+                    }
+                    .win-card {
+                        padding: 3rem 4rem 3rem 8rem;
+                    }
+                    .win-title {
+                        font-size: 5rem;
+                    }
+                    @media (max-width: 1200px) {
+                        .win-tiger { width: 500px !important; max-width: 35vw !important; margin-right: -100px !important; }
+                        .win-card { padding: 2.5rem 3rem 2.5rem 6rem !important; }
+                        .win-title { font-size: 3.5rem !important; }
+                    }
+                    @media (max-width: 992px) {
+                        .win-overlay { flex-direction: column !important; gap: 1rem !important; }
+                        .win-tiger { display: none !important; }
+                        .win-card { padding: 2rem !important; margin: 0 !important; max-width: 90vw !important; }
+                        .win-title { font-size: 2.5rem !important; }
+                    }
+                    @media (max-width: 600px) {
+                        .win-card { padding: 1.5rem !important; }
+                        .win-title { font-size: 2rem !important; }
+                        .win-stats { padding: 1rem 1.5rem !important; gap: 1rem !important; flex-wrap: wrap !important; }
+                        .win-actions { flex-direction: column !important; width: 100% !important; }
+                        .win-actions button { width: 100% !important; justify-content: center !important; }
+                    }
+
                     /* Puzzle Grid Wrapper */
                     .puzzle-grid-wrapper {
                         position: relative;
@@ -1297,11 +1336,11 @@ function PlaySlidingPuzzle() {
 
                     <div className="start-card" style={{
                         display: 'flex',
-                        flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-                        alignItems: 'center',
-                        gap: '2rem',
-                        padding: '2rem',
-                        width: '95%',
+                        flexDirection: 'row',
+                        alignItems: 'stretch',
+                        gap: '3rem',
+                        padding: '2.5rem',
+                        width: '100%',
                         maxWidth: '900px',
                         background: 'rgba(10, 10, 14, 0.75)',
                         backdropFilter: 'blur(30px)',
@@ -1462,7 +1501,7 @@ function PlaySlidingPuzzle() {
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="action-buttons" style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '0.5rem', flexWrap: 'wrap' }}>
+                            <div className="action-buttons" style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '0.5rem' }}>
                                 <button
                                     onClick={shuffleTiles}
                                     style={{
@@ -1541,16 +1580,15 @@ function PlaySlidingPuzzle() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '1.5rem',
-                    zIndex: 20,
+                    zIndex: 4,
                     width: '100%',
                     maxWidth: '1200px',
-                    marginTop: '80px',
-                    padding: '0 1rem 2rem 1rem',
-                    position: 'relative' // Ensure z-index works
+                    paddingTop: '2rem',
+                    paddingBottom: '3rem'
                 }}>
                     {/* Game Screen Horses */}
                     {/* Fire Horse - Left */}
-                    <div style={{
+                    <div className="game-horse" style={{
                         position: 'fixed',
                         top: '0%',
                         left: '-10%',
@@ -1558,8 +1596,7 @@ function PlaySlidingPuzzle() {
                         height: 'auto',
                         animation: 'phoenixFloat 5s ease-in-out infinite',
                         pointerEvents: 'none',
-                        zIndex: 0,
-                        display: window.innerWidth < 1280 ? 'none' : 'block'
+                        zIndex: 1
                     }}>
                         <img
                             src={fireHorseImg}
@@ -1575,16 +1612,15 @@ function PlaySlidingPuzzle() {
                     </div>
 
                     {/* Blue Horse - Right */}
-                    <div style={{
+                    <div className="game-horse" style={{
                         position: 'fixed',
-                        top: '15%',
+                        top: '20%',
                         right: '-8%',
                         width: '800px',
                         height: 'auto',
                         animation: 'phoenixFloat 5s ease-in-out infinite 1s',
                         pointerEvents: 'none',
-                        zIndex: 0,
-                        display: window.innerWidth < 1280 ? 'none' : 'block'
+                        zIndex: 1
                     }}>
                         <img
                             src={blueHorseImg}
@@ -1592,7 +1628,7 @@ function PlaySlidingPuzzle() {
                             style={{
                                 width: '100%',
                                 height: 'auto',
-                                transform: 'scaleX(-1)', // Flip to face left
+                                transform: 'scaleX(-1)',
                                 opacity: 1,
                                 filter: 'drop-shadow(0 0 60px rgba(0, 150, 255, 0.6)) contrast(1.5) brightness(1.25) saturate(1.8)'
                             }}
@@ -1613,12 +1649,7 @@ function PlaySlidingPuzzle() {
                         background: 'rgba(30, 30, 40, 0.6)',
                         border: '1px solid rgba(255, 255, 255, 0.1)',
                         backdropFilter: 'blur(10px)',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-                        position: 'relative',
-                        zIndex: 30,
-                        width: '100%',
-                        maxWidth: '500px',
-                        flexWrap: 'wrap'
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
                     }}>
                         <div style={{ textAlign: 'center' }}>
                             <span style={{ display: 'block', fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', color: '#a0aec0', letterSpacing: '2px', marginBottom: '0.2rem' }}>Moves</span>
@@ -1813,35 +1844,34 @@ function PlaySlidingPuzzle() {
 
             {/* WIN OVERLAY - Premium Design */}
             {gameResult === 'won' && (
-                <div style={{
+                <div className="win-overlay" style={{
                     position: 'fixed',
                     inset: 0,
                     zIndex: 9999,
                     background: 'rgba(5, 5, 10, 0.95)',
                     backdropFilter: 'blur(20px)',
                     display: 'flex',
-                    flexDirection: 'column',
+                    flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontFamily: "'Sen', sans-serif",
-                    gap: '2rem',
-                    padding: '1rem',
-                    overflowY: 'auto'
+                    gap: '0',
+                    padding: '2rem'
                 }}>
-                    {/* Left Side: Image - Hidden on mobile if needed, or adjusted */}
-                    <div style={{
+                    {/* Left Side: Image */}
+                    <div className="win-tiger" style={{
                         animation: 'phoenixFloat 6s ease-in-out infinite',
                         flex: '0 0 auto',
                         zIndex: 50,
                         position: 'relative',
-                        marginBottom: '-50px'
+                        marginRight: '-150px'
                     }}>
                         <img
                             src={leftTigerImg}
                             alt="Left Tiger"
                             style={{
-                                width: '100%',
-                                maxWidth: '300px',
+                                width: '740px',
+                                maxWidth: '45vw',
                                 height: 'auto',
                                 objectFit: 'contain',
                                 filter: 'drop-shadow(0 0 50px rgba(255, 107, 53, 0.4)) contrast(1.25) saturate(1.3) brightness(1.1)',
@@ -1851,149 +1881,80 @@ function PlaySlidingPuzzle() {
                     </div>
 
                     {/* Right Side: Content Card */}
-                    <div style={{
+                    <div className="win-card" style={{
                         position: 'relative',
                         zIndex: 40,
                         display: 'flex',
-                        background: 'rgba(10, 10, 14, 0.85)',
-                        backdropFilter: 'blur(30px)',
-                        padding: '2.5rem',
-                        borderRadius: '32px',
+                        background: 'rgba(30, 30, 40, 0.85)',
+                        backdropFilter: 'blur(16px)',
+                        padding: '3rem 4rem 3rem 8rem',
+                        borderRadius: '30px',
                         border: '1px solid rgba(255, 107, 53, 0.3)',
-                        boxShadow: '0 40px 100px -20px rgba(0,0,0,0.8), 0 0 0 1px rgba(255, 107, 53, 0.15)',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: '2.5rem',
-                        minWidth: 'auto',
-                        width: '95%',
-                        maxWidth: '600px'
+                        gap: '2rem',
                     }}>
-                        <Trophy size={90} color="#ffd700" style={{ filter: 'drop-shadow(0 0 30px rgba(255, 215, 0, 0.4))' }} />
+                        <Trophy size={80} color="#ffd700" style={{ filter: 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.6))' }} />
 
                         <div style={{ textAlign: 'center' }}>
-                            <h1 style={{
-                                fontSize: 'clamp(2.5rem, 5vw, 4.5rem)',
+                            <h1 className="win-title" style={{
+                                fontSize: '5rem',
                                 fontWeight: 900,
-                                margin: 0,
-                                lineHeight: 1,
                                 background: 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)',
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent',
-                                filter: 'drop-shadow(0 0 25px rgba(255, 140, 0, 0.3))',
-                                textTransform: 'uppercase',
-                                letterSpacing: '2px'
+                                margin: 0,
+                                lineHeight: 1.1,
+                                filter: 'drop-shadow(0 0 30px rgba(255, 140, 0, 0.4))'
                             }}>
-                                Puzzle Solved!
+                                PUZZLE SOLVED!
                             </h1>
                             <p style={{
-                                color: '#a0aec0',
-                                fontSize: '1.1rem',
-                                letterSpacing: '0.4em',
-                                marginTop: '1rem',
-                                fontWeight: 600,
-                                textTransform: 'uppercase'
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                fontSize: '1.2rem',
+                                letterSpacing: '0.2em',
+                                marginTop: '0.5rem'
                             }}>
-                                Magnificent Victory
+                                MAGNIFICENT VICTORY
                             </p>
                         </div>
 
                         {/* Stats */}
-                        <div style={{
+                        <div className="win-stats" style={{
                             display: 'flex',
-                            gap: '0',
-                            background: 'rgba(255, 255, 255, 0.03)',
+                            gap: '2rem',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            padding: '1.5rem 3rem',
                             borderRadius: '20px',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            width: '100%',
-                            justifyContent: 'space-around'
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
                         }}>
-                            <div style={{
-                                textAlign: 'center',
-                                padding: '1.5rem 3rem',
-                                borderRight: '1px solid rgba(255, 255, 255, 0.1)'
-                            }}>
-                                <span style={{ display: 'block', fontSize: '0.85rem', color: '#a0aec0', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.5rem' }}>Time</span>
-                                <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#0096ff', fontFamily: "'Sen', sans-serif" }}>{formatTime(time)}</span>
+                            <div style={{ textAlign: 'center' }}>
+                                <span style={{ display: 'block', fontSize: '0.9rem', color: '#a0aec0', textTransform: 'uppercase' }}>Time</span>
+                                <span style={{ fontSize: '2rem', fontWeight: 700, color: '#0096ff' }}>{formatTime(time)}</span>
                             </div>
-                            <div style={{
-                                textAlign: 'center',
-                                padding: '1.5rem 3rem'
-                            }}>
-                                <span style={{ display: 'block', fontSize: '0.85rem', color: '#a0aec0', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.5rem' }}>Moves</span>
-                                <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#ff6b35', fontFamily: "'Sen', sans-serif" }}>{moves}</span>
+                            <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                            <div style={{ textAlign: 'center' }}>
+                                <span style={{ display: 'block', fontSize: '0.9rem', color: '#a0aec0', textTransform: 'uppercase' }}>Moves</span>
+                                <span style={{ fontSize: '2rem', fontWeight: 700, color: '#ff6b35' }}>{moves}</span>
                             </div>
                         </div>
 
                         {/* Actions */}
-                        <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', width: '100%', flexWrap: 'wrap' }}>
+                        <div className="win-actions" style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                             <button
                                 onClick={shuffleTiles}
-                                style={{
-                                    flex: 1,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '0.8rem',
-                                    padding: '1.2rem 2rem',
-                                    fontSize: '1.2rem',
-                                    fontWeight: 800,
-                                    fontFamily: "'Sen', sans-serif",
-                                    background: 'linear-gradient(90deg, #ff6b35 0%, #ff4500 100%)',
-                                    color: '#fff',
-                                    border: 'none',
-                                    borderRadius: '16px',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 10px 30px -5px rgba(255, 69, 0, 0.5), inset 0 1px 1px rgba(255,255,255,0.3)',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '1px'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-                                    e.currentTarget.style.boxShadow = '0 15px 40px -5px rgba(255, 69, 0, 0.6), inset 0 1px 1px rgba(255,255,255,0.3)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                                    e.currentTarget.style.boxShadow = '0 10px 30px -5px rgba(255, 69, 0, 0.5), inset 0 1px 1px rgba(255,255,255,0.3)';
-                                }}
+                                className="game-btn"
+                                style={{ fontSize: '1.2rem', padding: '1rem 2rem' }}
                             >
-                                <RotateCcw size={22} strokeWidth={2.5} /> PLAY AGAIN
+                                <RotateCcw size={20} /> Play Again
                             </button>
                             <button
                                 onClick={handleExit}
-                                style={{
-                                    flex: 1,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '0.8rem',
-                                    padding: '1.2rem 2rem',
-                                    background: 'rgba(0, 150, 255, 0.1)',
-                                    color: '#0096ff',
-                                    border: '1px solid rgba(0, 150, 255, 0.3)',
-                                    borderRadius: '16px',
-                                    cursor: 'pointer',
-                                    fontSize: '1.1rem',
-                                    fontWeight: 700,
-                                    fontFamily: "'Sen', sans-serif",
-                                    transition: 'all 0.2s ease',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '1px'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'rgba(0, 150, 255, 0.2)';
-                                    e.currentTarget.style.borderColor = 'rgba(0, 150, 255, 0.6)';
-                                    e.currentTarget.style.color = '#fff';
-                                    e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 150, 255, 0.3)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'rgba(0, 150, 255, 0.1)';
-                                    e.currentTarget.style.borderColor = 'rgba(0, 150, 255, 0.3)';
-                                    e.currentTarget.style.color = '#0096ff';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                }}
+                                className="game-btn-outline-blue"
+                                style={{ fontSize: '1.2rem', padding: '1rem 2rem' }}
                             >
-                                <ArrowLeft size={22} strokeWidth={2.5} /> EXIT GAME
+                                <ArrowLeft size={20} /> Exit Game
                             </button>
                         </div>
                     </div>
