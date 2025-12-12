@@ -165,34 +165,32 @@ function PlaySlidingPuzzle() {
         };
     }, []);
 
-    // Load persisted win state
-    useEffect(() => {
-        const savedWon = localStorage.getItem('puzzle_won');
-        if (savedWon === 'true') {
-            setIsFinished(true);
-            setGameResult('won');
-            setMoves(parseInt(localStorage.getItem('puzzle_moves') || '0'));
-            setTime(parseInt(localStorage.getItem('puzzle_time') || '0'));
-            setIsStarted(true);
-            setIsLoadingGame(false);
-        }
-    }, []);
+
 
     // Start Screen Audio (Hello)
     useEffect(() => {
         if (!isStarted && !loading) {
             const audio = new Audio(helloSfx);
             audio.volume = 0.7;
-            audio.playbackRate = 0.45; // Extremely slow and deep (Monster-like)
+            // audio.playbackRate = 1.0; 
             audio.muted = isMuted;
+
+            const handleTimeUpdate = () => {
+                if (audio.currentTime >= 2) {
+                    audio.pause();
+                }
+            };
+            audio.addEventListener('timeupdate', handleTimeUpdate);
+
             audio.play().catch(console.error);
 
             return () => {
                 audio.pause();
                 audio.currentTime = 0;
+                audio.removeEventListener('timeupdate', handleTimeUpdate);
             };
         }
-    }, [isStarted, loading]); // Note: mute toggle won't stop playing audio immediately here unless effect re-runs, usually fine for short clip
+    }, [isStarted, loading]);
 
     // Countdown effect
     useEffect(() => {
@@ -299,11 +297,6 @@ function PlaySlidingPuzzle() {
 
     const shuffleTiles = useCallback(() => {
         if (!puzzle) return;
-
-        // Clear persistence
-        localStorage.removeItem('puzzle_won');
-        localStorage.removeItem('puzzle_moves');
-        localStorage.removeItem('puzzle_time');
 
         // Show loading animation
         setIsLoadingGame(true);
@@ -453,9 +446,7 @@ function PlaySlidingPuzzle() {
                 setTimeout(() => {
                     setIsFinished(true);
                     setGameResult('won');
-                    localStorage.setItem('puzzle_won', 'true');
-                    localStorage.setItem('puzzle_moves', moves.toString());
-                    localStorage.setItem('puzzle_time', time.toString());
+
                     setIsAnimatingWin(false);
                     toast.success("Congratulations! You solved the puzzle!", toastStyle);
                 }, 500);
@@ -600,9 +591,7 @@ function PlaySlidingPuzzle() {
         if (isStarted && !isFinished) {
             await addPlayCount(id!);
         }
-        localStorage.removeItem('puzzle_won');
-        localStorage.removeItem('puzzle_moves');
-        localStorage.removeItem('puzzle_time');
+
         navigate("/");
     };
 
